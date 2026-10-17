@@ -37,7 +37,7 @@ function StatRow({ icon, label, value }: { icon?: React.ReactNode; label: string
 }
 
 export function GameOver() {
-  const { result, restart, goSelect, goMenu } = useGame()
+  const { result, restart, goSelect, goMenu, save } = useGame()
   if (!result) return null
   const timeUp = result.reason === 'time'
   return (
@@ -48,8 +48,8 @@ export function GameOver() {
         <p className="mt-3 text-center text-lg font-black text-white/90">{timeUp ? '時間到了，迷宮還沒走完！已撿到的筆記仍會保留。' : '生命用盡了，再挑戰一次吧！已撿到的筆記仍會保留。'}</p>
         <div className="mt-6 rounded-xl bg-black/20 px-5 py-2">
           <StatRow label="關卡" value={`${LEVEL_INFO[result.levelId - 1].label} · ${LEVEL_INFO[result.levelId - 1].name}`} />
-          <StatRow icon={<NoteIcon size={22} />} label="筆記磚" value={`${result.notes} / ${result.notesTotal}`} />
-          <StatRow icon={<CoinIcon size={22} />} label="金幣" value={`${result.coins}${result.coinsTotal ? ` / ${result.coinsTotal}` : ''}`} />
+          <StatRow icon={<NoteIcon size={22} />} label={result.notesTotal > 0 ? '本關筆記磚' : '五階筆記'} value={result.notesTotal > 0 ? `${result.notes} / ${result.notesTotal}` : `${save.notes.length} / ${NOTES.length}`} />
+          <StatRow icon={<CoinIcon size={22} />} label={result.levelId === 6 ? '星之碎片' : '金幣'} value={`${result.coins}${result.coinsTotal ? ` / ${result.coinsTotal}` : ''}`} />
           <StatRow label="用時" value={formatTime(result.time)} />
         </div>
         <div className="mt-7 flex flex-col gap-4">
@@ -68,6 +68,7 @@ export function Victory() {
   const { result, restart, goSelect, goMenu, next, openNotes, save } = useGame()
   if (!result) return null
   const last = result.levelId >= LEVEL_COUNT
+  const finale = last && result.levelId === 6
   const info = LEVEL_INFO[result.levelId - 1]
   const mine = notesOfStage(result.levelId)
   const got = new Set(save.notes)
@@ -77,22 +78,27 @@ export function Victory() {
         <div className="grid gap-7 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <div>
             <div className="lego-text text-center text-xs tracking-[.5em] text-white/75">{last ? 'ALL CLEAR' : 'STAGE CLEAR'}</div>
-            <h2 className="lego-text mt-1 text-center text-5xl md:text-6xl" data-testid="victory-title">{last ? '揚升完成！' : '通關成功！'}</h2>
+            <h2 className="lego-text mt-1 text-center text-5xl md:text-6xl" data-testid="victory-title">{finale ? '星空之門開啟！' : last ? '揚升完成！' : '通關成功！'}</h2>
             <p className="mt-1 text-center text-base font-black text-white/90">{info.label} · {info.name}</p>
+            {finale && <p className="mt-2 text-center text-sm font-bold leading-relaxed text-white/85">六枚星之碎片匯聚成光，五階學習之旅在星空中圓滿。新的方向，正從門後展開。</p>}
             <div className="mt-4 flex justify-center"><Stars n={result.stars} size={52} /></div>
             {result.newBest && <div className="mt-2 text-center"><span className="rounded-md bg-lyellow px-3 py-1 text-sm font-black text-[#1B2A34]">新紀錄！</span></div>}
             <div className="mt-5 rounded-xl bg-black/20 px-5 py-2">
               <StatRow label="通關時間" value={formatTime(result.time)} />
-              <StatRow icon={<NoteIcon size={22} />} label="筆記磚" value={`${result.notes} / ${result.notesTotal}`} />
-              <StatRow icon={<CoinIcon size={22} />} label="金幣" value={`${result.coins}${result.coinsTotal ? ` / ${result.coinsTotal}` : ''}`} />
+              <StatRow icon={<NoteIcon size={22} />} label={result.notesTotal > 0 ? '本關筆記磚' : '五階筆記'} value={result.notesTotal > 0 ? `${result.notes} / ${result.notesTotal}` : `${save.notes.length} / ${NOTES.length}`} />
+              <StatRow icon={<CoinIcon size={22} />} label={finale ? '星之碎片' : '金幣'} value={`${result.coins}${result.coinsTotal ? ` / ${result.coinsTotal}` : ''}`} />
               <StatRow icon={<Heart on />} label="剩餘生命" value={`${result.lives} / ${result.livesMax}`} />
               {result.best && <StatRow label="最佳時間" value={formatTime(result.best.time)} />}
             </div>
             {!result.ranked && <p className="mt-2 text-center text-xs font-bold text-white/70">已使用 Tweak 調整數值，本次成績不計入紀錄</p>}
           </div>
           <div>
-            <div className="lego-text text-sm tracking-[.3em] text-white/80">本階筆記 · {mine.filter(n => got.has(n.id)).length}/{mine.length}</div>
+            <div className="lego-text text-sm tracking-[.3em] text-white/80">{mine.length > 0 ? `本階筆記 · ${mine.filter(n => got.has(n.id)).length}/${mine.length}` : '五階學習筆記'}</div>
             <div className="mt-2 flex flex-col gap-2.5" data-testid="victory-notes">
+              {finale && <div className="rounded-xl bg-[#171944] px-4 py-5 text-center text-white" data-testid="finale-ending">
+                <div className="text-xl font-black">終章 · 星空之門</div>
+                <p className="mt-2 text-sm font-bold leading-relaxed">你已穿越五階學習、收集 {result.coins} 枚星之碎片，讓星門重新亮起。這段旅程至此完成，星光仍在前方延伸。</p>
+              </div>}
               {mine.map(n => (
                 <div key={n.id} className="rounded-xl bg-white px-4 py-2.5 text-[#1B2A34]">
                   <div className="flex items-center justify-between">
@@ -103,7 +109,7 @@ export function Victory() {
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs font-bold text-white/75">{last ? `五階全部走完，共收集 ${save.notes.length} / ${NOTES.length} 張筆記。` : `已收集 ${save.notes.length} / ${NOTES.length} 張筆記。`}</p>
+            <p className="mt-3 text-xs font-bold text-white/75">{finale ? `五階學習筆記共收集 ${save.notes.length} / ${NOTES.length} 張；終章不新增筆記分類。` : last ? `六關全部走完，共收集 ${save.notes.length} / ${NOTES.length} 張筆記。` : `已收集 ${save.notes.length} / ${NOTES.length} 張筆記。`}</p>
           </div>
         </div>
         <div className="mt-6 grid gap-4 md:grid-cols-[1.4fr_1fr_1fr_1fr]">

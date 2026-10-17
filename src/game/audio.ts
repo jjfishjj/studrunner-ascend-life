@@ -1,8 +1,8 @@
 /**
  * 音效系統：全部由 Web Audio 即時合成，無外部檔案。
  * - sfx：短音效（跳躍、金幣、筆記磚……）
- * - music：每一階各有一首會循環的小曲（由程式依種子生成旋律）
- * - ambience：海浪、瀑布、溪流、森林／草地、叢林昆蟲、山風與宇宙音景（依玩家位置調整音量）
+ * - music：選單與六個關卡各有一首會循環的小曲（由程式依種子生成旋律）
+ * - ambience：海浪、瀑布、溪流、森林／草地、叢林昆蟲與鳥鳴、山風與宇宙音景（依玩家位置調整音量）
  * 瀏覽器要求「使用者互動後」才能出聲，所以會在第一次點擊 / 按鍵時自動解鎖。
  */
 let ctx: AudioContext | null = null
@@ -12,7 +12,8 @@ let musicBus: GainNode | null = null
 let ambBus: GainNode | null = null
 let muted = false
 const MASTER_VOL = 0.9
-const SFX_VOL = 1
+const DEFAULT_SFX_VOL = 1
+let sfxVolume = DEFAULT_SFX_VOL
 const MUSIC_VOL = 0.34
 const AMB_VOL = 0.9
 
@@ -31,7 +32,7 @@ function ensure(): AudioContext | null {
     comp.threshold.value = -14
     comp.ratio.value = 4
     master.connect(comp).connect(ctx.destination)
-    sfxBus = ctx.createGain(); sfxBus.gain.value = SFX_VOL; sfxBus.connect(master)
+    sfxBus = ctx.createGain(); sfxBus.gain.value = sfxVolume; sfxBus.connect(master)
     musicBus = ctx.createGain(); musicBus.gain.value = MUSIC_VOL; musicBus.connect(master)
     ambBus = ctx.createGain(); ambBus.gain.value = AMB_VOL; ambBus.connect(master)
     ctx.addEventListener('statechange', flushRunning)
@@ -49,6 +50,11 @@ function flushRunning() {
 export function setMuted(m: boolean) {
   muted = m
   if (master && ctx) master.gain.setTargetAtTime(m ? 0 : MASTER_VOL, ctx.currentTime, 0.03)
+}
+/** 獨立調整音效匯流排，不影響 BGM 或環境音；可在音訊解鎖前先設定。 */
+export function setSfxVolume(v: number) {
+  sfxVolume = Math.max(0, Math.min(1.5, v))
+  if (sfxBus && ctx) sfxBus.gain.setTargetAtTime(sfxVolume, ctx.currentTime, 0.03)
 }
 export function isMuted() { return muted }
 /** 需在使用者手勢後呼叫以解鎖音訊 */
@@ -101,6 +107,7 @@ function noise(dur: number, vol = 0.2, delay = 0, cutoff = 900, bus: GainNode | 
 export const sfx = {
   click: () => { tone(660, 0.06, 'square', 0.16); tone(880, 0.07, 'square', 0.12, undefined, 0.04) },
   coin: () => { tone(988, 0.08, 'square', 0.22); tone(1318, 0.2, 'square', 0.22, undefined, 0.07) },
+  star: () => { [1047, 1319, 1568].forEach((f, i) => tone(f, 0.26, 'sine', 0.24, undefined, i * 0.07)); tone(523, 0.48, 'triangle', 0.14, 1047, 0.04) },
   note: () => { [659, 784, 988, 1319, 1568].forEach((f, i) => tone(f, 0.28, 'triangle', 0.3, undefined, i * 0.07)); tone(330, 0.5, 'sine', 0.2) },
   jump: () => { tone(300, 0.18, 'sine', 0.32, 700); noise(0.05, 0.1, 0, 2500) },
   land: () => { noise(0.12, 0.4, 0, 700); tone(110, 0.1, 'sine', 0.25, 60) },
@@ -109,9 +116,11 @@ export const sfx = {
   checkpoint: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'triangle', 0.3, undefined, i * 0.08)) },
   switch: () => { tone(180, 0.1, 'square', 0.28); tone(360, 0.16, 'square', 0.24, undefined, 0.06); noise(0.08, 0.2, 0, 3000) },
   gateOpen: () => { tone(110, 0.6, 'sawtooth', 0.22, 330); noise(0.5, 0.18, 0, 1200) },
+  portal: () => { [196, 294, 392, 587].forEach((f, i) => tone(f, 0.75, 'sine', 0.2, undefined, i * 0.1)); tone(784, 1.05, 'triangle', 0.18, 1568, 0.18) },
   gateClose: () => { tone(330, 0.5, 'sawtooth', 0.22, 90); noise(0.3, 0.3, 0.35, 600) },
   locked: () => { tone(160, 0.14, 'square', 0.26); tone(130, 0.2, 'square', 0.26, undefined, 0.1) },
   win: () => { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, 0.24, 'square', 0.26, undefined, i * 0.11)); [262, 330, 392].forEach(f => tone(f, 0.9, 'triangle', 0.2, undefined, 0.6)) },
+  finale: () => { [523, 659, 784, 988, 1175].forEach((f, i) => tone(f, 1.15, 'sine', 0.19, undefined, i * 0.11)); [262, 392, 523, 659].forEach((f, i) => tone(f, 1.6, 'triangle', 0.16, undefined, 0.45 + i * 0.08)) },
   lose: () => { [392, 330, 262, 196].forEach((f, i) => tone(f, 0.32, 'triangle', 0.34, undefined, i * 0.2)) },
 }
 
@@ -139,7 +148,7 @@ const PENTA = [0, 2, 4, 7, 9]
 const MINOR_PENTA = [0, 3, 5, 7, 10]
 const MIXO = [0, 2, 4, 5, 7, 9, 10]
 const LYDIAN = [0, 2, 4, 6, 7, 9, 11]
-/** 0 = 選單／筆記本，1~5 = 各階 */
+/** 0 = 選單／筆記本，1~5 = 各階，6 = 星空終章 */
 const THEMES: Record<number, Theme> = {
   0: { bpm: 96, root: 60, scale: MAJOR, prog: [0, 4, 5, 3], seed: 11, lead: 'triangle', density: 0.55, shaker: false },
   1: { bpm: 116, root: 62, scale: MAJOR, prog: [0, 3, 4, 0, 5, 3, 4, 4], seed: 21, lead: 'square', density: 0.7, shaker: true },
@@ -147,6 +156,7 @@ const THEMES: Record<number, Theme> = {
   3: { bpm: 120, root: 60, scale: MIXO, prog: [0, 6, 3, 0, 0, 6, 4, 3], seed: 47, lead: 'square', density: 0.75, shaker: true },
   4: { bpm: 84, root: 57, scale: MINOR_PENTA, prog: [0, 2, 3, 1], seed: 59, lead: 'sine', density: 0.45, shaker: false },
   5: { bpm: 108, root: 64, scale: PENTA, prog: [0, 3, 2, 4], seed: 71, lead: 'triangle', density: 0.7, shaker: true, swing: 0.12 },
+  6: { bpm: 72, root: 60, scale: LYDIAN, prog: [0, 3, 5, 4], seed: 113, lead: 'sine', density: 0.44, shaker: false },
 }
 const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12)
 function mulberry(seed: number) {
@@ -267,7 +277,7 @@ function scheduleMusic() {
 function applyDuck() {
   if (ctx && musicBus) musicBus.gain.setTargetAtTime((ducked ? MUSIC_VOL * 0.25 : MUSIC_VOL) * musicVolume, ctx.currentTime, 0.12)
 }
-/** 切換背景音樂：0 = 選單，1~5 = 各階，null = 停止。 */
+/** 切換背景音樂：0 = 選單，1~6 = 各關，null = 停止。 */
 export function musicPlay(id: number | null) {
   musicWanted = id
   const c = ensure()

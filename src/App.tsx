@@ -11,10 +11,12 @@ import { MusicSettings } from './ui/MusicSettings'
 import { useMusic } from './game/musicLibrary'
 import { SpeakerButton } from './ui/parts'
 import { GameOver, PauseMenu, Victory } from './ui/Overlays'
+import { TouchControls } from './ui/TouchControls'
 
 export default function App() {
   const screen = useGame(s => s.screen)
   const paused = useGame(s => s.paused)
+  const runId = useGame(s => s.runId)
 
   const levelId = useGame(s => s.levelId)
   // 載入曲庫與上傳過的音樂；網址帶 #admin（或 ?admin）直接進入音樂管理頁
@@ -30,7 +32,7 @@ export default function App() {
   }, [screen, levelId])
   useEffect(() => { musicDuck(screen === 'playing' && paused) }, [screen, paused])
   useEffect(() => {
-    installInput()
+    const uninstallInput = installInput()
     const onKey = (e: KeyboardEvent) => {
       const s = useGame.getState()
       if (e.code === 'KeyM') { s.toggleMute(); return }
@@ -53,7 +55,7 @@ export default function App() {
     const onHide = () => { if (document.hidden) useGame.getState().pause() }
     window.addEventListener('keydown', onKey)
     document.addEventListener('visibilitychange', onHide)
-    return () => { window.removeEventListener('keydown', onKey); document.removeEventListener('visibilitychange', onHide) }
+    return () => { uninstallInput(); window.removeEventListener('keydown', onKey); document.removeEventListener('visibilitychange', onHide) }
   }, [])
 
   return (
@@ -64,10 +66,11 @@ export default function App() {
       {screen === 'notes' && <Notebook />}
       {screen === 'music' && <MusicSettings />}
       {(screen === 'playing' || screen === 'gameover' || screen === 'victory') && <Hud />}
+      {screen === 'playing' && !paused && <TouchControls key={runId} />}
       {screen === 'playing' && paused && <PauseMenu />}
       {screen === 'gameover' && <GameOver />}
       {screen === 'victory' && <Victory />}
-      <SpeakerButton />
+      {screen !== 'playing' && <SpeakerButton />}
     </div>
   )
 }

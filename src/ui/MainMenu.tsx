@@ -8,10 +8,10 @@ const TITLE: Array<[string, string, string]> = [
   ['揚', COLORS.red, '#fff'], ['升', COLORS.yellow, COLORS.black], ['人', COLORS.blue, '#fff'], ['生', COLORS.green, '#fff'],
 ]
 
-/** 五階小階梯：已通關的階段會亮起，呼應「揚升」。 */
+/** 六關小階梯：前五階學習後接上星空終章。 */
 function Staircase({ cleared, compact = false }: { cleared: Set<string>; compact?: boolean }) {
   return (
-    <div className="flex items-end gap-2" aria-label="五階進度">
+    <div className="flex items-end gap-2" aria-label="五階學習與星空終章進度">
       {LEVEL_INFO.map((l, i) => (
         <Brick key={l.id} color={cleared.has(String(l.id)) ? l.color : '#4a5a6b'} className="flex w-10 items-center justify-center pb-1 pt-2 text-xs sm:w-14 sm:text-sm md:w-16" style={{ height: compact ? 26 + i * 7 : 34 + i * 14, color: cleared.has(String(l.id)) ? l.ink : 'rgba(255,255,255,.55)' }}>
           <span className="font-black">{l.label}</span>
@@ -37,10 +37,10 @@ export function MainMenu() {
             ))}
           </div>
           <Brick color={COLORS.white} className="inline-block px-3 py-2 sm:px-5">
-            <span className="ink-text text-base sm:text-xl md:text-2xl">五階學習闖關 · 樂高積木世界</span>
+            <span className="ink-text text-base sm:text-xl md:text-2xl">五階學習 × 星空終章 · 樂高積木世界</span>
           </Brick>
           <p className="mt-3 max-w-md text-sm font-bold leading-relaxed text-white/90 sm:mt-5 sm:text-base">
-            一段穿越五種自然地景的學習旅程：從森林家園、夕照海灣與五運河谷，登上星瀑觀象台，再走進叢林、瀑布與海灘交會的合一迷宮。每關尋回 4 張地標筆記磚，把探索化成自己的練習。
+            操控樂高小人完成五階學習，收集 20 張筆記磚；接著走進「星空之門」，收集六枚星之碎片，為旅程揭開最終結局。
           </p>
           <div className="mt-3 grid max-w-md grid-cols-3 gap-2 sm:mt-5 xl:hidden" aria-label="自然場景預覽">
             {[
@@ -69,19 +69,19 @@ export function MainMenu() {
           </div>
           <div className="flex items-center gap-4 text-xs font-bold text-white/60">
             <span>已通關 {cleared.size} / {LEVEL_COUNT}</span>
-            <button className="underline underline-offset-4 hover:text-white" onClick={() => { sfx.click(); openMusic('menu') }} data-testid="open-music">音樂設定</button>
+            <button className="underline underline-offset-4 hover:text-white" onClick={() => { sfx.click(); openMusic('menu') }} data-testid="open-music">音樂／音效設定</button>
             <button className="underline underline-offset-4 hover:text-white" onClick={toggleMute}>{save.muted ? '音效：關' : '音效：開'}（M）</button>
           </div>
         </div>
       </div>
-      <aside className="absolute right-6 top-1/2 hidden w-[min(340px,27vw)] -translate-y-1/2 rounded-2xl border border-white/20 bg-[#061633]/65 p-4 text-white shadow-2xl backdrop-blur-md xl:block" aria-label="五階自然旅程預覽">
-        <div className="text-[11px] font-black tracking-[.28em] text-white/65">五階學習 × 五境地景</div>
+      <aside className="absolute right-6 top-1/2 hidden w-[min(340px,27vw)] -translate-y-1/2 rounded-2xl border border-white/20 bg-[#061633]/65 p-4 text-white shadow-2xl backdrop-blur-md xl:block" aria-label="六關旅程預覽">
+        <div className="text-[11px] font-black tracking-[.28em] text-white/65">五階學習 × 星空終章</div>
         <h2 className="mt-1 text-xl font-black">選一段旅程先看</h2>
         <p className="mt-1 text-xs font-bold leading-relaxed text-white/70">每張積木卡都連結一種環境與一個生活練習。</p>
         <div className="mt-3 flex flex-col gap-2">
           {LEVEL_INFO.map((l, i) => <button key={l.id} onClick={() => { sfx.click(); start(l.id) }} className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left transition hover:-translate-x-1 hover:bg-white/15" data-testid={`preview-stage-${l.id}`}>
             <span className="brick brick-studs flex h-9 w-10 shrink-0 items-center justify-center text-sm font-black" style={{ ['--c' as string]: l.color, color: l.ink }}>{l.label}</span>
-            <span className="min-w-0"><span className="block truncate text-sm font-black">{l.environment}</span><span className="mt-0.5 block truncate text-[10px] font-bold text-white/65">{l.name} · {['自我與家園', '親密關係', '生活平衡', '宇宙觀', '自然合一'][i]}</span></span>
+            <span className="min-w-0"><span className="block truncate text-sm font-black">{l.environment}</span><span className="mt-0.5 block truncate text-[10px] font-bold text-white/65">{l.name} · {['自我與家園', '親密關係', '生活平衡', '宇宙觀', '自然合一', '最終結局'][i]}</span></span>
             <span className="ml-auto text-lg text-lyellow transition group-hover:translate-x-1">›</span>
           </button>)}
         </div>

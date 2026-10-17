@@ -141,6 +141,19 @@ describe('關卡資料', () => {
     expect(l.switches).toHaveLength(1)
     expect(l.meta!.pathLength).toBeGreaterThan(12)
   })
+  it('關卡 6 是六枚星之碎片開門的安全終章，含軌道橋、兩個檢查點與機器人路線', () => {
+    const l = buildLevel(6)
+    expect(l.coins).toHaveLength(6)
+    expect(l.requiredCoins).toBe(6)
+    expect(l.gate?.mode).toBe('coins')
+    expect(l.movers).toHaveLength(1)
+    expect(l.movers[0].hazard).not.toBe(true)
+    expect(l.checkpoints).toHaveLength(2)
+    expect(l.timeLimit).toBeUndefined()
+    expect(l.notes).toHaveLength(0)
+    expect(l.goalNeedsNotes).toBe(false)
+    expect(l.route!.length).toBeGreaterThan(7)
+  })
 })
 
 describe('角色物理', () => {
@@ -367,7 +380,47 @@ describe('關卡 5 迷宮', () => {
   })
 })
 
+describe('關卡 6 星空之門', () => {
+  it('機器人沿固定星島路線收集六枚碎片、開啟星門並完成終章', () => {
+    const w = new GameWorld(buildLevel(6))
+    w.lives = 99
+    const bot = new Bot(w)
+    const failed = runRoute(w, bot, w.level.route!, 24)
+    expect(failed, `卡在 ${JSON.stringify(failed)}`).toBeNull()
+    expect(w.coins).toBe(6)
+    expect(w.gate?.permanent).toBe(true)
+    expect(w.gateAmount).toBeGreaterThan(0.9)
+    expect(w.notesGot).toBe(0)
+    expect(w.checkpointActive).toEqual([true, true])
+    expect(w.status).toBe('won')
+  })
+})
+
 describe('關卡 5 機關', () => {
+  it('閘門後有潮汐漂流木與新檢查點，且障礙確實位於主路閘門之後', () => {
+    const level = buildLevel(5)
+    const maze = generateMaze(MAZE_SEED)
+    const gateAt = Math.min(maze.path.length - 4, Math.round(maze.path.length * 0.5) + 5)
+    const tide = level.movers.filter(m => m.id.startsWith('tide-'))
+    expect(tide.length).toBeGreaterThanOrEqual(2)
+    expect(tide.every(m => m.hazard && m.motion.type === 'slide')).toBe(true)
+    for (const mover of tide) {
+      const index = maze.path.slice(0, -1).findIndex(([cx, cy], i) => {
+        const [ax, az] = cellToWorld(cx, cy)
+        const [bx, bz] = cellToWorld(maze.path[i + 1][0], maze.path[i + 1][1])
+        return Math.hypot((ax + bx) / 2 - mover.brick.pos[0], (az + bz) / 2 - mover.brick.pos[2]) < 0.01
+      })
+      expect(index).toBeGreaterThan(gateAt)
+    }
+    expect(level.checkpoints).toHaveLength(2)
+    const w = new GameWorld(level)
+    const cp = level.checkpoints[1].pos
+    w.player.position.set(cp[0], cp[1] + 0.5, cp[2])
+    w.step(DT, none)
+    expect(w.checkpointActive[1]).toBe(true)
+    expect(w.respawn).toEqual([cp[0], cp[1] + 0.1, cp[2]])
+  })
+
   it('旋轉橫桿與陷阱塊會傷人，閘門需踩按鈕才開', () => {
     const w = new GameWorld(buildLevel(5))
     const g = w.level.gate!

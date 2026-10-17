@@ -13,21 +13,21 @@ export function LevelSelect() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="lego-text text-xs tracking-[.4em] text-white/70">ASCEND · 揚升之路</div>
-          <h2 className="lego-text mt-1 text-4xl md:text-5xl">選擇階段</h2>
+          <h2 className="lego-text mt-1 text-4xl md:text-5xl">選擇關卡</h2>
         </div>
         <div className="flex gap-4">
           <button className="btn btn-yellow" onClick={() => { sfx.click(); openNotes('select') }} data-testid="open-notes"><NoteIcon size={24} />學習筆記 {save.notes.length}/{NOTES.length}</button>
-          <button className="btn btn-blue" onClick={() => { sfx.click(); openMusic('select') }} data-testid="open-music">音樂設定</button>
+          <button className="btn btn-blue" onClick={() => { sfx.click(); openMusic('select') }} data-testid="open-music">音樂／音效設定</button>
           <button className="btn btn-white" onClick={() => { sfx.click(); goMenu() }} data-testid="back">返回</button>
         </div>
       </div>
-      <div className="mt-auto grid grid-cols-1 items-end gap-x-4 gap-y-8 pb-4 pt-10 sm:grid-cols-2 lg:grid-cols-5">
-        {LEVEL_INFO.map((l, i) => {
+      <div className="mt-auto grid grid-cols-1 items-end gap-x-4 gap-y-6 pb-4 pt-10 sm:grid-cols-2 lg:grid-cols-3">
+        {LEVEL_INFO.map(l => {
           const best = save.best[String(l.id)]
           const mine = notesOfStage(l.stage)
           const n = mine.filter(x => got.has(x.id)).length
           return (
-            <div key={l.id} className="lg:transition-transform" style={{ transform: `translateY(${-i * 16}px)` }}>
+            <div key={l.id} className="transition-transform">
               <Brick color={l.color} className={`flex h-full flex-col p-4 transition-transform ${attract === l.id ? '-translate-y-2' : ''}`}>
                 <div onMouseEnter={() => setAttract(l.id)} onFocus={() => setAttract(l.id)} className="flex flex-1 flex-col" style={{ color: l.ink }}>
                   <div className="flex items-start justify-between">
@@ -46,7 +46,7 @@ export function LevelSelect() {
                   <p className="mt-3 min-h-[3.8rem] text-xs font-bold leading-relaxed opacity-95">{l.blurb}</p>
                   <p className="mt-2 min-h-[3.7rem] rounded-lg bg-white/25 px-2 py-1.5 text-[11px] font-bold leading-relaxed">{l.arc}</p>
                   <div className="mt-3 flex items-center justify-between">
-                    <NotePips got={n} color={l.ink === '#FFFFFF' ? '#F2CD37' : '#C91A09'} />
+                    {mine.length > 0 ? <NotePips got={n} color={l.ink === '#FFFFFF' ? '#F2CD37' : '#C91A09'} /> : <span className="rounded-md bg-black/20 px-2 py-1 text-[10px] font-black">五階筆記之外 · 終章</span>}
                     <span className="rounded-md bg-black/25 px-2 py-0.5 text-[11px] font-black" style={{ color: '#fff' }}>{l.tag}</span>
                   </div>
                   <button className="btn btn-yellow mt-4 w-full" style={l.id === 2 ? { ['--c' as string]: COLORS.white } : undefined} onClick={() => start(l.id)} data-testid={`level-${l.id}`}>出發</button>

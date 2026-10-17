@@ -39,8 +39,8 @@ export function MusicSettings() {
     <div className="panel-backdrop absolute inset-0 flex flex-col overflow-y-auto px-5 py-7 md:px-10 md:py-9" data-testid="music-settings">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="lego-text text-xs tracking-[.4em] text-white/70">MUSIC · 背景音樂管理</div>
-          <h2 className="lego-text mt-1 text-4xl md:text-5xl">音樂設定</h2>
+          <div className="lego-text text-xs tracking-[.4em] text-white/70">AUDIO · 音樂與音效管理</div>
+          <h2 className="lego-text mt-1 text-4xl md:text-5xl">音樂／音效設定</h2>
         </div>
         <div className="flex gap-4">
           <button className="btn btn-white" onClick={() => { sfx.click(); stopAll(); m.resetAll() }} data-testid="music-reset">全部還原預設</button>
@@ -81,16 +81,22 @@ export function MusicSettings() {
               )
             })}
           </div>
-          <div className="mt-5 flex items-center gap-3">
-            <label htmlFor="mvol" className="w-24 shrink-0 text-sm font-black">音樂音量</label>
-            <input id="mvol" type="range" min={0} max={1.5} step={0.05} value={m.volume} onChange={e => m.setVolume(Number(e.target.value))} className="flex-1 accent-yellow-400" data-testid="music-volume" />
-            <span className="w-12 text-right font-mono text-sm font-bold">{Math.round(m.volume * 100)}%</span>
-          </div>
         </section>
 
         {/* 上傳 */}
         <section className="flex flex-col rounded-2xl bg-black/30 p-5 text-white">
-          <h3 className="lego-text text-2xl">上傳音樂</h3>
+          <h3 className="lego-text text-2xl">整體音量</h3>
+          <div className="mt-3 flex items-center gap-3">
+            <label htmlFor="mvol" className="w-24 shrink-0 text-sm font-black">音樂音量</label>
+            <input id="mvol" type="range" min={0} max={1.5} step={0.05} value={m.volume} onChange={e => m.setVolume(Number(e.target.value))} className="flex-1 accent-yellow-400" data-testid="music-volume" />
+            <span className="w-12 text-right font-mono text-sm font-bold">{Math.round(m.volume * 100)}%</span>
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <label htmlFor="sfxvol" className="w-24 shrink-0 text-sm font-black">音效音量</label>
+            <input id="sfxvol" type="range" min={0} max={1.5} step={0.05} value={m.sfxVolume} onChange={e => m.setSfxVolume(Number(e.target.value))} className="flex-1 accent-cyan-300" data-testid="sfx-volume" />
+            <span className="w-12 text-right font-mono text-sm font-bold">{Math.round(m.sfxVolume * 100)}%</span>
+          </div>
+          <h3 className="lego-text mt-8 text-2xl">上傳音樂</h3>
           <p className="mt-1 text-sm font-bold text-white/70">支援 mp3、ogg、wav、m4a，每首最多 25 MB，最多 20 首。</p>
           <label
             onDragOver={e => { e.preventDefault(); setDrag(true) }}

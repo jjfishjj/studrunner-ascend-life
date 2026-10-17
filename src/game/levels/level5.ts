@@ -38,7 +38,7 @@ export function pickNoteDeadEnds(maze: ReturnType<typeof generateMaze>, skipFrom
 /**
  * 五階「合一與環境能量」－合一迷宮（終極挑戰）
  * 綠意環繞的 7x7 迷宮；四張筆記磚（17～20）藏在離主路最近的四條死路；路上有旋轉的低矮橫桿（跳過去）、週期升起的紅色陷阱塊、
- * 以及「踩下藍色按鈕後只開 12 秒」的限時閘門，整關另有倒數計時。
+ * 踩下藍色按鈕後只開 12 秒的限時閘門；閘門後還有潮汐漂流木節拍區與檢查點，整關另有倒數計時。
  */
 export function buildLevel5(): LevelDef {
   const maze = generateMaze(MAZE_SEED)
@@ -66,6 +66,16 @@ export function buildLevel5(): LevelDef {
   const switchAt = Math.round(L * 0.5)
   const gateAt = Math.min(L - 4, switchAt + 5)
   const trapPass = [Math.round(L * 0.1), Math.round(L * 0.3), switchAt + 2, Math.round(L * 0.74)]
+  // 閘門後的潮汐區依主路索引選點，避開既有旋轉橫桿與陷阱格。
+  const tidePassIndices: number[] = []
+  const reservedPasses = [...spinnerAt, ...trapPass, switchAt, gateAt]
+  for (let separation = 3; separation >= 1 && tidePassIndices.length < 2; separation--) {
+    for (let i = gateAt + 2; i < L - 1 && tidePassIndices.length < 3; i++) {
+      if (reservedPasses.some(idx => Math.abs(idx - i) <= 1)) continue
+      if (tidePassIndices.some(idx => Math.abs(idx - i) < separation)) continue
+      tidePassIndices.push(i)
+    }
+  }
 
   // 預先標記「陷阱磚格」，地板視覺改為凹槽
   const trapTiles = new Set<string>()
@@ -155,6 +165,20 @@ export function buildLevel5(): LevelDef {
       id: `trap-${k}`, hazard: true,
       brick: { pos: [t.x, 0, t.z], size: [TILE - 0.3, BRICK_H, TILE - 0.3], color: C.red },
       motion: { type: 'pulse', rise: BRICK_H, period: t.period, up: 0.4, phase: t.phase },
+    })
+  })
+
+  // 閘門後的潮汐漂流木橫掃狹道，抓準節奏跳過；以低凸點裝飾降低手機繪製負擔。
+  tidePassIndices.forEach((idx, k) => {
+    const p = passOf(idx)
+    movers.push({
+      id: `tide-${k}`, hazard: true,
+      brick: {
+        pos: [p.x, 0, p.z],
+        size: p.horizontal ? [0.9, BRICK_H, TILE - 0.2] : [TILE - 0.2, BRICK_H, 0.9],
+        color: N.trunk, studs: false,
+      },
+      motion: { type: 'slide', axis: p.horizontal ? 'x' : 'z', amp: 0.8, speed: 0.85 + k * 0.12, phase: k * 1.7 },
     })
   })
 
@@ -292,12 +316,13 @@ export function buildLevel5(): LevelDef {
   const [spx, spz] = cellOf(0)
   const [gx, gz] = cellOf(L - 1)
   const [cpx, cpz] = cellOf(checkpointAt)
+  const [tideCpx, tideCpz] = cellOf(Math.min(gateAt + 1, L - 2))
 
   return {
     id: 5,
     name: '合一迷宮',
     subtitle: '合一與環境能量',
-    hint: '到死路撿齊 4 張筆記磚，跳過旋轉橫桿、躲開紅色陷阱，踩下藍色按鈕後 12 秒內衝過閘門！',
+    hint: '到死路撿齊 4 張筆記磚，踩下藍色按鈕後 12 秒內衝過閘門；閘門後還有潮汐漂流木節拍區與檢查點！',
     lives: 5,
     timeLimit: 120,
     parTime: 60,
@@ -308,7 +333,7 @@ export function buildLevel5(): LevelDef {
     killY: -6,
     camera: { distance: 5, height: 20, mode: 'follow', yaw: 0 },
     statics, decor, movers, coins,
-    checkpoints: [{ pos: [cpx, 0, cpz] }],
+    checkpoints: [{ pos: [cpx, 0, cpz] }, { pos: [tideCpx, 0, tideCpz] }],
     gate,
     switches: [{ pos: [sx, 0, sz] }],
     goal: [gx, 0, gz],

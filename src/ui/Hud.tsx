@@ -1,4 +1,4 @@
-import { LEVEL_INFO } from '../game/levels'
+import { LEVEL_COUNT, LEVEL_INFO } from '../game/levels'
 import { buildLevelHint } from './hints'
 import { formatTime } from '../game/rules'
 import { useGame } from '../game/store'
@@ -21,7 +21,7 @@ export function Hud() {
       {/* 頂部列 */}
       <div className="absolute left-0 right-0 top-0 flex items-start justify-between gap-3 px-4 pt-5 md:px-8">
         <Brick color={info.color} className="px-4 py-2" style={{ minWidth: 150, color: info.ink }}>
-          <div className="text-[11px] font-black tracking-[.3em] opacity-80">第 {levelId} / 5 關</div>
+          <div className="text-[11px] font-black tracking-[.3em] opacity-80">第 {levelId} / {LEVEL_COUNT} 關</div>
           <div className="text-xl font-black leading-tight" data-testid="hud-level">{info.label} · {info.name}</div>
         </Brick>
 
@@ -45,16 +45,17 @@ export function Hud() {
             <div className="ink-text mr-1 text-xs">生命</div>
             <div className="flex gap-0.5" data-testid="hud-lives" data-lives={hud.lives}>{hearts.map((on, i) => <Heart key={i} on={on} />)}</div>
           </Brick>
-          <Brick color={info.color} className="flex items-center gap-2 px-3 py-2" style={{ color: info.ink }}>
+          {levelId <= 5 && <Brick color={info.color} className="flex items-center gap-2 px-3 py-2" style={{ color: info.ink }}>
             <NoteIcon size={28} color="#F2F3F2" />
             <div className="font-mono text-2xl font-black tabular-nums" data-testid="hud-notes">
               {hud.notes}<span className="text-lg opacity-70"> / {hud.notesTotal}</span>
             </div>
-          </Brick>
+          </Brick>}
           <Brick color={COLORS.yellow} className="flex items-center gap-2 px-4 py-2">
             <CoinIcon />
-            <div className="ink-text font-mono text-2xl tabular-nums" data-testid="hud-coins">
-              {hud.coins}{hud.coinsTotal > 0 && <span className="text-lg opacity-60"> / {hud.coinsTotal}</span>}
+            <div className="ink-text flex flex-col font-mono text-2xl tabular-nums" data-testid="hud-coins">
+              <span className="font-sans text-[10px] font-black leading-none">{levelId === 6 ? '星之碎片' : '金幣'}</span>
+              <span>{hud.coins}{hud.coinsTotal > 0 && <span className="text-lg opacity-60"> / {hud.coinsTotal}</span>}</span>
             </div>
           </Brick>
         </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
-import { musicRefresh, setMusicResolver, setMusicVolume, type MusicChoice } from './audio'
+import { musicRefresh, setMusicResolver, setMusicVolume, setSfxVolume, type MusicChoice } from './audio'
 
-/** 音樂欄位：0 = 主選單／筆記本，1~5 = 各階 */
+/** 音樂欄位：0 = 主選單／筆記本，1~5 = 各階，6 = 星空終章 */
 export const MUSIC_SLOTS = [
   { slot: 0, label: '主選單／筆記本', hint: '開始畫面、階段選擇' },
   { slot: 1, label: '一階 · 原點大道', hint: '自我與原生家庭' },
@@ -9,6 +9,7 @@ export const MUSIC_SLOTS = [
   { slot: 3, label: '三階 · 五運群島', hint: '親子與人生平衡' },
   { slot: 4, label: '四階 · 揚升之塔', hint: '宇宙觀與更高層次能量' },
   { slot: 5, label: '五階 · 合一迷宮', hint: '海灘、叢林與瀑布' },
+  { slot: 6, label: '終章 · 星空之門', hint: '星之碎片與最終結局' },
 ] as const
 
 export interface Track {
@@ -27,6 +28,7 @@ export const BUILTIN_TRACKS: Track[] = [
   { id: 'builtin-3', name: '內建 · 五運群島（跳躍）', kind: 'builtin', theme: 3 },
   { id: 'builtin-4', name: '內建 · 揚升之塔（空靈）', kind: 'builtin', theme: 4 },
   { id: 'builtin-5', name: '內建 · 合一迷宮（南國）', kind: 'builtin', theme: 5 },
+  { id: 'builtin-6', name: '內建 · 星空之門（空靈終章）', kind: 'builtin', theme: 6 },
 ]
 export const OFF_ID = 'off'
 const LS_KEY = 'studrunner.music.v1'
@@ -72,12 +74,17 @@ async function dbDelete(id: string) {
 }
 
 /* ---------- 設定（localStorage） ---------- */
-interface Prefs { assign: Record<string, string>; volume: number }
+interface Prefs { assign: Record<string, string>; volume: number; sfxVolume: number }
 function loadPrefs(): Prefs {
   try {
     const p = JSON.parse(localStorage.getItem(LS_KEY) ?? '{}')
-    return { assign: typeof p.assign === 'object' && p.assign ? p.assign : {}, volume: typeof p.volume === 'number' ? p.volume : 1 }
-  } catch { return { assign: {}, volume: 1 } }
+    return {
+      assign: typeof p.assign === 'object' && p.assign ? p.assign : {},
+      volume: typeof p.volume === 'number' ? Math.max(0, Math.min(1.5, p.volume)) : 1,
+      // 舊版偏好沒有 sfxVolume 時，以 100% 音效音量向後相容。
+      sfxVolume: typeof p.sfxVolume === 'number' ? Math.max(0, Math.min(1.5, p.sfxVolume)) : 1,
+    }
+  } catch { return { assign: {}, volume: 1, sfxVolume: 1 } }
 }
 const savePrefs = (p: Prefs) => { try { localStorage.setItem(LS_KEY, JSON.stringify(p)) } catch { /* 無痕模式 */ } }
 
@@ -88,12 +95,14 @@ interface MusicState {
   manifestDefaults: Record<string, string>
   assign: Record<string, string>
   volume: number
+  sfxVolume: number
   error: string | null
   init(): Promise<void>
   addFiles(list: FileList | File[]): Promise<void>
   removeUpload(id: string): Promise<void>
   setAssign(slot: number, trackId: string | null): void
   setVolume(v: number): void
+  setSfxVolume(v: number): void
   resetAll(): void
   clearError(): void
 }
@@ -133,6 +142,7 @@ export const useMusic = create<MusicState>((set, get) => ({
       set({ uploads })
     } catch { /* IndexedDB 不可用 */ }
     setMusicVolume(get().volume)
+    setSfxVolume(get().sfxVolume)
     musicRefresh()
   },
   addFiles: async list => {
@@ -157,7 +167,7 @@ export const useMusic = create<MusicState>((set, get) => ({
     if (url) { URL.revokeObjectURL(url); urlOf.delete(id) }
     const assign = Object.fromEntries(Object.entries(get().assign).filter(([, v]) => v !== id))
     set(s => ({ uploads: s.uploads.filter(t => t.id !== id), assign }))
-    savePrefs({ assign, volume: get().volume })
+    savePrefs({ assign, volume: get().volume, sfxVolume: get().sfxVolume })
     musicRefresh()
   },
   setAssign: (slot, trackId) => {
@@ -165,18 +175,26 @@ export const useMusic = create<MusicState>((set, get) => ({
     if (trackId == null) delete assign[String(slot)]
     else assign[String(slot)] = trackId
     set({ assign })
-    savePrefs({ assign, volume: get().volume })
+    savePrefs({ assign, volume: get().volume, sfxVolume: get().sfxVolume })
     musicRefresh()
   },
   setVolume: v => {
-    set({ volume: v })
-    savePrefs({ assign: get().assign, volume: v })
-    setMusicVolume(v)
+    const volume = Math.max(0, Math.min(1.5, v))
+    set({ volume })
+    savePrefs({ assign: get().assign, volume, sfxVolume: get().sfxVolume })
+    setMusicVolume(volume)
+  },
+  setSfxVolume: v => {
+    const sfxVolume = Math.max(0, Math.min(1.5, v))
+    set({ sfxVolume })
+    savePrefs({ assign: get().assign, volume: get().volume, sfxVolume })
+    setSfxVolume(sfxVolume)
   },
   resetAll: () => {
-    set({ assign: {}, volume: 1 })
-    savePrefs({ assign: {}, volume: 1 })
+    set({ assign: {}, volume: 1, sfxVolume: 1 })
+    savePrefs({ assign: {}, volume: 1, sfxVolume: 1 })
     setMusicVolume(1)
+    setSfxVolume(1)
     musicRefresh()
   },
   clearError: () => set({ error: null }),

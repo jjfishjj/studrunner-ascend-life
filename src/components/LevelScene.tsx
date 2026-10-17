@@ -194,6 +194,35 @@ function Goal({ world }: { world: GameWorld }) {
   )
 }
 
+/** 星空之門的非碰撞視覺：雙層發光環與微幅呼吸的傳送門核心。 */
+function FinalePortal({ position }: { position: [number, number, number] }) {
+  const outer = useRef<THREE.Mesh>(null)
+  const inner = useRef<THREE.Mesh>(null)
+  const core = useRef<THREE.Mesh>(null)
+  useFrame(state => {
+    const t = state.clock.elapsedTime
+    if (outer.current) outer.current.rotation.z = Math.sin(t * 0.45) * 0.035
+    if (inner.current) inner.current.rotation.z = -t * 0.12
+    if (core.current) core.current.scale.setScalar(1 + Math.sin(t * 1.5) * 0.025)
+  })
+  return (
+    <group position={[position[0], position[1] + 3.1, position[2] + 0.65]}>
+      <mesh ref={core}>
+        <circleGeometry args={[2.55, 48]} />
+        <meshBasicMaterial color="#18245B" transparent opacity={0.55} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={outer}>
+        <torusGeometry args={[2.9, 0.2, 12, 48]} />
+        <meshStandardMaterial color="#8A6CFF" emissive="#6649D8" emissiveIntensity={0.8} metalness={0.35} roughness={0.32} />
+      </mesh>
+      <mesh ref={inner}>
+        <torusGeometry args={[2.48, 0.08, 8, 48]} />
+        <meshStandardMaterial color="#51D8EE" emissive="#51D8EE" emissiveIntensity={1.15} />
+      </mesh>
+    </group>
+  )
+}
+
 export function LevelScene({ world, getAlpha }: { world: GameWorld; getAlpha: () => number }) {
   const level: LevelDef = world.level
   return (
@@ -207,6 +236,7 @@ export function LevelScene({ world, getAlpha }: { world: GameWorld; getAlpha: ()
       <Checkpoints world={world} />
       <Switches world={world} />
       <Goal world={world} />
+      {level.id === 6 && level.gate && <FinalePortal position={level.gate.brick.pos} />}
       <Nature level={level} />
     </>
   )

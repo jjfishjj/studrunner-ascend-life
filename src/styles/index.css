@@ -85,3 +85,23 @@ canvas { display: block; touch-action: none; }
 @media (prefers-reduced-motion: reduce) {
   .floaty, .timer-danger { animation: none; }
 }
+
+
+/* 手機遊戲控制：保留安全區並阻止虛擬搖桿拖曳觸發瀏覽器手勢。 */
+.touch-controls { display: none; pointer-events: none; }
+.touch-control {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch-pad-anchor { left: max(1rem, env(safe-area-inset-left)); bottom: max(1rem, env(safe-area-inset-bottom)); }
+.touch-jump-anchor { right: max(1rem, env(safe-area-inset-right)); bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+.touch-pause-anchor { right: max(1rem, env(safe-area-inset-right)); top: max(5.5rem, calc(env(safe-area-inset-top) + 4rem)); }
+.touch-pad { width: 8.5rem; height: 8.5rem; }
+.touch-pad-knob { width: 3.5rem; height: 3.5rem; }
+.touch-jump { width: 5.25rem; height: 5.25rem; }
+.touch-pause { min-width: 3rem; min-height: 3rem; }
+@media (max-width: 767px), (pointer: coarse) {
+  .touch-controls { display: block; }
+}

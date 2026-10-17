@@ -36,6 +36,7 @@ const ATTRACT: Record<number, { focus: Vec3; dist: number; height: number; speed
   3: { focus: [0, 0, -60], dist: 52, height: 14, speed: 0.06 },
   4: { focus: [0, 12, 0], dist: 32, height: 8, speed: 0.12 },
   5: { focus: [4, 4, -4], dist: 78, height: 38, speed: 0.05 },
+  6: { focus: [0, 3, -18], dist: 52, height: 20, speed: 0.045 },
 }
 
 type Mode = 'play' | 'attract'
@@ -62,7 +63,7 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
     for (const e of world.drainEvents()) {
       switch (e.type) {
         case 'coin':
-          fx.burst(e.pos, COIN_COLORS, 16, 6.5); sfx.coin()
+          fx.burst(e.pos, COIN_COLORS, 16, 6.5); world.level.id === 6 ? sfx.star() : sfx.coin()
           break
         case 'note': {
           const def = NOTE_BY_ID[e.id]
@@ -96,7 +97,7 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
           st.showToast(`閘門開啟！${world.level.gate?.openSeconds ?? 10} 秒內通過`, 'good')
           break
         case 'gate':
-          if (e.open) sfx.gateOpen()
+          if (e.open) world.level.id === 6 ? sfx.portal() : sfx.gateOpen()
           else { sfx.gateClose(); if (world.level.gate?.mode === 'switch') st.showToast('閘門關閉了！回頭再踩一次按鈕', 'bad') }
           if (e.open && world.level.gate?.mode !== 'switch') st.showToast('終點閘門打開了！', 'good')
           break
@@ -104,7 +105,7 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
           sfx.locked(); st.showToast(`還差 ${e.need} 張筆記磚才能通過終點`, 'bad')
           break
         case 'win':
-          fx.burst([e.pos[0], e.pos[1] + 1.5, e.pos[2]], PARTY_COLORS, 80, 9, 0.4); sfx.win()
+          fx.burst([e.pos[0], e.pos[1] + 1.5, e.pos[2]], PARTY_COLORS, 80, 9, 0.4); world.level.id === 6 ? sfx.finale() : sfx.win()
           break
         case 'lose':
           sfx.lose()

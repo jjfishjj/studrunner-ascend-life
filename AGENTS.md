@@ -1,7 +1,7 @@
 # AGENTS.md — 給接手開發的 AI／工程師
 
-專案：**Stud Runner：揚升人生**（`studrunner`）——純前端、單機的 3D 樂高積木風格闖關遊戲。
-五個階段對應 20 張學習筆記磚（五階學習筆記分類），語言固定繁體中文。
+專案：**Stud Runner：揚升人生**（`studrunner`）——純前端、單機的 3D 樂高積木風格六關闖關遊戲。
+前五個階段對應 20 張學習筆記磚（五階學習筆記分類），第六關是五階學習之後的「星空之門」最終結局，語言固定繁體中文。
 
 ## 快速開始
 
@@ -26,23 +26,24 @@ React 19 + Vite + TypeScript · Three.js + `@react-three/fiber`/`drei`（只負�
 
 | 路徑 | 職責 |
 | --- | --- |
-| `src/game/levels/level1..5.ts` | 純資料的關卡建構器 `buildLevel(id): LevelDef`：`statics`（有碰撞）、`decor`（純視覺）、movers、coins、notes、goal、gate、`nature`（動畫自然景物）。 |
+| `src/game/levels/level1..6.ts` | 純資料的關卡建構器 `buildLevel(id): LevelDef`：`statics`（有碰撞）、`decor`（純視覺）、movers、coins、notes、goal、gate、`nature`（動畫自然景物）；第六關為浮空積木島星空終章。 |
 | `src/game/levels/maze.ts` | 迷宮生成（DFS）+ BFS 解路徑，五階使用。 |
 | `src/game/levels/nature.ts` | 自然景物積木生成器（棕櫚、叢林樹、蕨、藤蔓、瀑布岩壁、彩虹、碼頭、沙堡…）與 `biomeAt(x,z)` 生態區判定（沙灘／叢林／瀑布區）。 |
 | `src/game/engine.ts` | `GameWorld`：固定步長（1/60）的 cannon-es 物理 + 規則（生命、跳躍、移動平台、陷阱、檢查點、筆記磚、閘門倒數、終點）。**不依賴 React，可在 vitest 裡直接跑**。 |
 | `src/game/store.ts` | zustand 全域狀態：畫面流程（menu/select/notes/music/playing/gameover/victory）、HUD、存檔（localStorage）。 |
-| `src/game/audio.ts` | Web Audio 合成音效、內建合成背景曲、環境音（海浪／瀑布／鳥鳴依距離變化）；也能播放使用者／曲庫的音檔。 |
-| `src/game/musicLibrary.ts` | 音樂曲庫：內建曲目 + `public/music/manifest.json` 曲庫 + 瀏覽器上傳（IndexedDB）；每個欄位（0 選單、1~5 各階）可自選。 |
+| `src/game/audio.ts` | Web Audio 合成音效、內建合成背景曲、環境音（前五階的海浪／瀑布／鳥鳴依距離變化）；包含星碎片、星門與終章音效，也能播放使用者／曲庫的音檔。 |
+| `src/game/musicLibrary.ts` | 音樂曲庫：內建曲目 + `public/music/manifest.json` 曲庫 + 瀏覽器上傳（IndexedDB）；每個欄位（0 選單、1~6 各關）可自選。 |
 | `src/components/GameView.tsx` | R3F Canvas、模擬迴圈、第三人稱跟隨鏡頭、事件→粒子／音效／HUD；`ATTRACT` 為選單背景鏡頭。 |
 | `src/components/LevelScene.tsx` / `Nature.tsx` / `BrickField.tsx` / `Minifigure.tsx` / `Particles.tsx` | 場景渲染、動態自然景物（瀑布、海浪、螃蟹、帆船、蝴蝶、鳥）、積木批次繪製、樂高小人、Brick Burst 粒子。 |
-| `src/ui/*` | Tailwind UI：主選單、階段選擇、HUD、暫停／結束／結算、學習筆記本、音樂設定。 |
+| `src/ui/*` | Tailwind UI：主選單、關卡選擇、HUD、暫停／結束／結算、學習筆記本、音訊設定；`TouchControls.tsx` 提供虛擬搖桿、按住跳躍與暫停，處理多指、取消及失焦清理。選關入口包含前五階學習與第六關終章。 |
 | `tests/` | `engine.test.ts` 有「機器人」依關卡路徑自動通關的整合測試；`levels.test.ts` 含凸點數量預算（效能）。 |
 
-### 五個階段
+### 五階學習與第六關終章
 
 1. 原點大道（直線路線、滑動樂高牆）· 2. 心橋（滑動平台、旋轉橫桿、升降陷阱）· 3. 五運群島（升降浮橋）
 4. 揚升之塔（垂直螺旋浮空階梯，宇宙場景）· 5. 合一迷宮（旋轉障礙、陷阱、限時閘門；海灘／叢林／瀑布三種生態區，閘門要踩按鈕）
-每階有 4 張筆記磚（`src/game/notes.ts` 定義 20 個分類），收集後可在筆記本檢視並複製成 Markdown；終點需收齊筆記才開啟。
+每個原有階段有 4 張筆記磚（`src/game/notes.ts` 的 `STAGES` 定義五階、20 個分類），收集後可在筆記本檢視並複製成 Markdown；前五關的終點需收齊本關筆記才開啟。
+6. 星空之門（五階學習後的最終結局）：穿越浮空積木島與可移動軌道橋，收集 6 枚星之碎片（沿用金幣引擎）開啟終點星門；有兩個檢查點、全關無倒數，不新增筆記分類，`notes` 維持空集合。
 
 ## 修改時的注意事項
 
@@ -56,7 +57,6 @@ React 19 + Vite + TypeScript · Three.js + `@react-three/fiber`/`drei`（只負�
 
 ## 已知限制／可延伸方向
 
-- 沒有行動裝置觸控操作（目前僅鍵盤 WASD／方向鍵＋Space）——可加虛擬搖桿。
-- 存檔只在 localStorage（星等、最佳時間、已收集筆記、靜音）。
+- 存檔只在 localStorage（星等、最佳時間、已收集筆記、靜音，以及分開的音樂／SFX 音量）；舊版設定若缺少 `sfxVolume`，讀取時回退到既有預設值以保持相容。
 - 管理者上傳音樂沒有伺服器端儲存；若要多人共享需加後端（物件儲存 + 簡單驗證）。
-- 五階場景繪製量較大（InstancedMesh 已批次化），低階裝置可考慮降低裝飾密度（`level5.ts` 的 `r2()` 機率）。
+- 第五階場景繪製量較大（InstancedMesh 已批次化），低階裝置可考慮降低裝飾密度（`level5.ts` 的 `r2()` 機率）；第六關的星空裝飾也應維持效能預算。
