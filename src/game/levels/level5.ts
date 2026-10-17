@@ -1,6 +1,10 @@
 import { BRICK_H, type BrickSpec, type LevelDef, type MoverSpec, type NoteSpec, type Vec3, type GateSpec } from '../types'
 import { C, rng } from '../colors'
-import { cloud, flower, tree } from './scenery'
+import { cloud, flower } from './scenery'
+import {
+  N, biomeAt, beachBall, bush, cliff, driftwood, fern, jungleTree, lifeguard, lilypad, log, mushroom, palm, pier, pond,
+  rainbow, rocks, sandcastle, shell, starfish, surfboard, umbrella, vine,
+} from './nature'
 import { MAZE_TILES, TILE, cellToWorld, generateMaze, tileToWorld } from './maze'
 
 export const MAZE_SEED = 303
@@ -73,7 +77,15 @@ export function buildLevel5(): LevelDef {
     trapTiles.add(`${c},${rr}`)
   })
 
-  // 地板視覺
+  // 地板視覺：依生態區換色（海灘＝沙地、叢林＝泥土、瀑布區＝潮濕岩石）
+  const floorColor = (c: number, rr: number) => {
+    const [x, z] = tileToWorld(c, rr)
+    const k = (c + rr) % 2
+    const bio = biomeAt(x, z)
+    if (bio === 'beach') return k ? N.sand : N.sandDark
+    if (bio === 'jungle') return k ? N.dirt : '#8A6A43'
+    return k ? C.gray : N.wet
+  }
   for (let rr = 0; rr < T; rr++) {
     for (let c = 0; c < T; c++) {
       if (maze.walls[rr][c]) continue
@@ -81,13 +93,16 @@ export function buildLevel5(): LevelDef {
       if (trapTiles.has(`${c},${rr}`)) {
         decor.push({ pos: [x, -1.6, z], size: [TILE, 0.4, TILE], color: C.black, collide: false, studs: false })
       } else {
-        decor.push({ pos: [x, -0.6, z], size: [TILE, 0.4, TILE], color: (c + rr) % 2 ? C.gray : C.white, collide: false })
+        decor.push({ pos: [x, -0.6, z], size: [TILE, 0.4, TILE], color: floorColor(c, rr), collide: false })
       }
     }
   }
-
   // 牆：碰撞以「橫向連續牆段」合併；視覺以三層交錯磚疊起
-  const wallColors = [C.red, C.blue, C.yellow, C.green]
+  const wallColor = (bio: ReturnType<typeof biomeAt>, layer: number, k: number) => {
+    if (bio === 'beach') return layer === 0 ? N.sandDark : layer === 1 ? (k % 2 ? C.white : N.sandLight) : N.sandLight
+    if (bio === 'jungle') return layer === 0 ? N.trunk : layer === 1 ? N.leafDark : (k % 2 ? N.leaf : N.leafLight)
+    return layer === 0 ? C.darkGray : layer === 1 ? C.gray : (k % 2 ? C.gray : C.darkGray)
+  }
   for (let rr = 0; rr < T; rr++) {
     let c = 0
     while (c < T) {
@@ -100,7 +115,7 @@ export function buildLevel5(): LevelDef {
       const cx = (x0 + x1) / 2
       const w = len * TILE
       statics.push({ pos: [cx, 0, z], size: [w, WALL_H, TILE], color: C.red, visible: false })
-      const base = wallColors[(rr * 3 + c) % wallColors.length]
+      const bio = biomeAt(x0, z)
       for (let layer = 0; layer < WALL_LAYERS; layer++) {
         // 每層以不同切點分段，製造磚牆交錯縫
         let t0 = 0
@@ -113,7 +128,7 @@ export function buildLevel5(): LevelDef {
           const bx = x0 - TILE / 2 + o * TILE + bw / 2
           statics.push({
             pos: [bx, layer * BRICK_H, z], size: [bw - 0.04, BRICK_H, TILE - 0.04],
-            color: layer === 1 ? (k % 2 ? C.white : base) : base, collide: false, studs: layer === WALL_LAYERS - 1,
+            color: wallColor(bio, layer, k + c), collide: false, studs: layer === WALL_LAYERS - 1,
           })
           o += n
         })
@@ -162,31 +177,118 @@ export function buildLevel5(): LevelDef {
   maze.deadEnds.filter(([cx, cy]) => !noteKeys.has(`${cx},${cy}`)).slice(0, 6).forEach(([cx, cy]) => { const [x, z] = cellToWorld(cx, cy); coins.push([x, 1.4, z]) })
   ;[Math.round(L * 0.3), Math.round(L * 0.7)].forEach(i => { const [x, z] = cellOf(i); coins.push([x, 1.4, z]) })
 
-  // 外圍裝飾
-  // 遠景底板（無凸點，節省繪製量）+ 迷宮外圍一圈有凸點的綠色底板
-  decor.push({ pos: [0, -8.4, 0], size: [150, BRICK_H, 150], color: C.darkGreen, collide: false, studs: false })
+  // ───────────── 外圍自然場景 ─────────────
+  // 南側：沙灘 + 大海；北側：潟湖 + 岩壁瀑布；東西側：叢林
   const ring = 14
+  const outer = half + ring
   const span = T * TILE + ring * 2
-  decor.push({ pos: [0, -BRICK_H, -(half + ring / 2)], size: [span, BRICK_H, ring], color: C.green, collide: false })
-  decor.push({ pos: [0, -BRICK_H, half + ring / 2], size: [span, BRICK_H, ring], color: C.green, collide: false })
-  decor.push({ pos: [-(half + ring / 2), -BRICK_H, 0], size: [ring, BRICK_H, T * TILE], color: C.green, collide: false })
-  decor.push({ pos: [half + ring / 2, -BRICK_H, 0], size: [ring, BRICK_H, T * TILE], color: C.green, collide: false })
-  for (let k = 0; k < 26; k++) {
-    const a = (k / 26) * Math.PI * 2 + r() * 0.2
-    const d = half + ring + 18 + r() * 14
-    decor.push(...tree(Math.cos(a) * d, Math.sin(a) * d, -7.2, 2.6 + r() * 1.4))
+  const fl = -BRICK_H
+  decor.push({ pos: [0, -8.4, 0], size: [150, BRICK_H, 150], color: C.darkGreen, collide: false, studs: false }) // 遠景底板
+  decor.push({ pos: [-(half + ring / 2), fl, 0], size: [ring, BRICK_H, T * TILE], color: C.green, collide: false })
+  decor.push({ pos: [half + ring / 2, fl, 0], size: [ring, BRICK_H, T * TILE], color: C.green, collide: false })
+  decor.push({ pos: [-outer / 2, fl, -(half + ring / 2)], size: [outer, BRICK_H, ring], color: C.green, collide: false })
+  decor.push({ pos: [0, fl, half + ring / 2], size: [span, BRICK_H, ring], color: N.sand, collide: false }) // 沙灘
+  decor.push({ pos: [0, 0, outer - 1], size: [span, 0.2, 2], color: N.sandDark, collide: false, studs: false }) // 濕沙
+  // 大海（淺水 → 深水）
+  decor.push({ pos: [0, -1.7, outer + 40], size: [240, 1, 80], color: N.water, collide: false, studs: false })
+  decor.push({ pos: [0, -0.75, outer + 4], size: [240, 0.1, 8], color: N.waterShallow, collide: false, studs: false })
+  decor.push({ pos: [0, -0.72, outer + 58], size: [240, 0.04, 44], color: N.waterDeep, collide: false, studs: false })
+  // 北側潟湖（水面比地面低一點）與岩壁
+  decor.push({ pos: [outer / 2, -1.4, -(half + 8)], size: [outer, 1, 16], color: N.water, collide: false, studs: false })
+  decor.push({ pos: [outer / 2, -0.55, -(half + 1.5)], size: [outer, 0.2, 3], color: N.waterShallow, collide: false, studs: false })
+  const FX = 14
+  decor.push(...cliff([
+    { x: 18, w: 64, z: -53, d: 14, h: 8.4, color: C.darkGray },
+    { x: 16, w: 48, z: -56, d: 12, h: 7.2, color: C.gray },
+    { x: 14, w: 32, z: -58, d: 10, h: 6, color: C.darkGray },
+  ], -1.2))
+  decor.push({ pos: [FX, 14.4, -51.5], size: [7, 0.25, 3.2], color: N.waterShallow, collide: false, studs: false })
+  decor.push({ pos: [FX, 7.2, -48], size: [7, 0.25, 4], color: N.waterShallow, collide: false, studs: false })
+  decor.push({ pos: [FX, 20.4, -58], size: [10, 0.25, 8], color: N.water, collide: false, studs: false })
+  decor.push({ pos: [44, 7.2, -48], size: [3, 0.25, 4], color: N.waterShallow, collide: false, studs: false })
+  decor.push(...jungleTree(5, -57, 20.4, 0.55), ...jungleTree(26, -57, 20.4, 0.6), ...rocks(20, -61, 20.4, 0.8), ...fern(8, -52.6, 20.4))
+  decor.push(...jungleTree(-3, -54, 14.4, 0.5), ...jungleTree(34, -55, 14.4, 0.55), ...bush(38, -49, 14.4))
+  decor.push(...jungleTree(-8, -50, 7.2, 0.6), ...jungleTree(46, -52, 7.2, 0.6), ...rocks(30, -47, 7.2, 0.8))
+  decor.push(...rainbow(FX, -0.4, -41, 14))
+  // 潟湖裡的睡蓮與踏石
+  for (let k = 0; k < 8; k++) decor.push(...lilypad(2 + r() * 40, -(33 + r() * 10), -0.45))
+  decor.push(...rocks(30, -38, -0.45, 1), ...rocks(6, -41, -0.45, 0.8), ...rocks(40, -34, -0.45, 0.9))
+  // 南側沙灘：棕櫚、陽傘、沙堡、救生台、衝浪板……
+  const beachY = 0
+  ;[-40, -29, -17, -3, 13, 27, 39].forEach((x, k) => decor.push(...palm(x, 34 + (k % 3) * 3.4, beachY, 3.6 + (k % 3) * 0.6, k % 2 ? 1 : -1)))
+  decor.push(...umbrella(-24, 38, beachY, C.red), ...umbrella(-9, 40, beachY, C.blue), ...umbrella(21, 38, beachY, C.yellow), ...umbrella(33, 41, beachY, C.green))
+  decor.push(...sandcastle(-34, 40, beachY, 1.1), ...sandcastle(29, 33, beachY, 0.9), ...lifeguard(6, 37, beachY))
+  decor.push(...surfboard(-20, 34.6, beachY, C.red), ...surfboard(-18.8, 34.6, beachY, C.yellow), ...surfboard(-17.6, 34.6, beachY, C.blue))
+  decor.push(...beachBall(0, 41, beachY), ...beachBall(-30, 33, beachY), ...driftwood(16, 42, beachY), ...driftwood(-36, 43, beachY))
+  for (let k = 0; k < 14; k++) {
+    const x = -40 + r() * 80, z = 31 + r() * 12
+    decor.push(...(k % 2 ? starfish(x, z, beachY + 0.2, k % 4 === 1 ? N.coral : C.orange) : shell(x, z, beachY + 0.2)))
   }
-  // 迷宮外圈的小樹與花
-  for (let k = 0; k < 16; k++) {
-    const a = (k / 16) * Math.PI * 2 + r() * 0.3
-    const d = half + 3 + r() * (ring - 5)
-    const x = Math.max(-half - ring + 2, Math.min(half + ring - 2, Math.cos(a) * d * 1.05))
-    const z = Math.max(-half - ring + 2, Math.min(half + ring - 2, Math.sin(a) * d * 1.05))
-    if (Math.abs(x) < half + 1.5 && Math.abs(z) < half + 1.5) continue
-    decor.push(...(k % 3 ? flower(x, z, 0, [C.red, C.yellow, C.white][k % 3]) : tree(x, z, 0, 1.1)))
+  decor.push(...pier(-12, outer, -0.1, 20))
+  // 東西側叢林：大樹、灌木、蕨類、蘑菇、倒木、水塘
+  const jungleSpots: [number, number, number][] = [
+    [-38, -24, 1.1], [-36, -10, 1.2], [-39, 4, 1.0], [-35, 18, 1.15],
+    [38, -22, 1.1], [37, -8, 1.0], [39, 8, 1.2], [36, 21, 1.1],
+    [-30, -40, 1.1], [-15, -39, 1.0],
+  ]
+  jungleSpots.forEach(([x, z, sc]) => decor.push(...jungleTree(x, z, 0, sc)))
+  for (let k = 0; k < 26; k++) {
+    const side = k % 2 ? 1 : -1
+    const x = side * (31.5 + r() * 11)
+    const z = -34 + r() * 66
+    const pick = k % 5
+    if (pick === 0) decor.push(...bush(x, z, 0, 2 + r()))
+    else if (pick === 1) decor.push(...fern(x, z, 0))
+    else if (pick === 2) decor.push(...mushroom(x, z, 0, 0.9 + r() * 0.5))
+    else if (pick === 3) decor.push(...flower(x, z, 0, [C.red, C.yellow, C.white, C.orange][k % 4]))
+    else decor.push(...log(x, z, 0, k % 3 === 0))
+  }
+  decor.push(...pond(39, 0, 0, 5, 7), ...lilypad(38, -1, 0.4), ...lilypad(40, 1.4, 0.4), ...pond(-38, 12, 0, 4, 5), ...lilypad(-38, 12, 0.4))
+  // 遠景：叢林巨樹與雲
+  for (let k = 0; k < 18; k++) {
+    const side = k % 2 ? 1 : -1
+    decor.push(...jungleTree(side * (56 + r() * 14), -50 + r() * 100, -7.2, 1.8 + r() * 0.8))
   }
   for (let k = 0; k < 8; k++) decor.push(...cloud((r() - 0.5) * 120, 16 + r() * 10, (r() - 0.5) * 120, r))
-
+  // ───────────── 迷宮內部：牆頂植被與走道點綴（僅視覺，不影響碰撞） ─────────────
+  const r2 = rng(909)
+  const keep: [number, number][] = [cellOf(0), cellOf(L - 1), cellOf(checkpointAt), cellOf(switchAt), ...notes.map(n => [n.pos[0], n.pos[2]] as [number, number])]
+  for (let rr = 0; rr < T; rr++) {
+    for (let c = 0; c < T; c++) {
+      const [x, z] = tileToWorld(c, rr)
+      const bio = biomeAt(x, z)
+      const roll = r2()
+      if (maze.walls[rr][c]) {
+        const top = WALL_H
+        if (bio === 'beach') {
+          if (roll < 0.13) decor.push(...palm(x, z, top, 2.4, roll < 0.065 ? 1 : -1))
+          else if (roll < 0.22) decor.push(...umbrella(x, z, top, [C.red, C.blue, C.yellow][(c + rr) % 3]))
+          else if (roll < 0.3) decor.push(...sandcastle(x, z, top, 0.8))
+          else if (roll < 0.42) decor.push(...(roll < 0.36 ? starfish(x, z, top, N.coral) : shell(x, z, top)))
+        } else if (bio === 'jungle') {
+          if (roll < 0.34) decor.push(...bush(x, z, top, 2.6))
+          else if (roll < 0.46) decor.push(...fern(x, z, top))
+          else if (roll < 0.54) decor.push(...mushroom(x, z, top, 0.9))
+          else if (roll < 0.62) decor.push(...palm(x, z, top, 2.4, 1))
+          // 垂掛的藤蔓：貼在面向走道的牆面
+          for (const [dc, dr, dir] of [[1, 0, '+x'], [-1, 0, '-x'], [0, 1, '+z'], [0, -1, '-z']] as const) {
+            const nc = c + dc, nr = rr + dr
+            if (nc < 0 || nr < 0 || nc >= T || nr >= T || maze.walls[nr][nc]) continue
+            if (r2() < 0.45) decor.push(...vine(x, z, 0, WALL_H - 0.3, dir))
+          }
+        } else {
+          if (roll < 0.3) decor.push(...rocks(x, z, top, 0.9))
+          else if (roll < 0.42) decor.push(...bush(x, z, top, 2.2))
+          else if (roll < 0.5) decor.push(...mushroom(x, z, top, 0.8))
+        }
+      } else if (roll < 0.28 && !trapTiles.has(`${c},${rr}`) && !keep.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < TILE * 0.9)) {
+        const ox = (r2() - 0.5) * 2.4, oz = (r2() - 0.5) * 2.4
+        if (bio === 'beach') decor.push(...(roll < 0.14 ? starfish(x + ox, z + oz, -0.2, N.coral) : shell(x + ox, z + oz, -0.2)))
+        else if (bio === 'jungle') decor.push({ pos: [x + ox, -0.2, z + oz], size: [0.9, 0.1, 0.6], color: roll < 0.14 ? N.lime : N.leaf, collide: false, studs: false })
+        else decor.push({ pos: [x + ox, -0.2, z + oz], size: [1.8, 0.08, 1.3], color: N.waterShallow, collide: false, studs: false })
+      }
+    }
+  }
   const [spx, spz] = cellOf(0)
   const [gx, gz] = cellOf(L - 1)
   const [cpx, cpz] = cellOf(checkpointAt)
@@ -200,8 +302,8 @@ export function buildLevel5(): LevelDef {
     timeLimit: 120,
     parTime: 60,
     requiredCoins: 0,
-    sky: '#9DE0C4',
-    fog: ['#C9F0DC', 60, 170],
+    sky: '#8FD8F2',
+    fog: ['#CDEFF2', 70, 200],
     spawn: [spx, 0.1, spz],
     killY: -6,
     camera: { distance: 5, height: 20, mode: 'follow', yaw: 0 },
@@ -212,6 +314,30 @@ export function buildLevel5(): LevelDef {
     goal: [gx, 0, gz],
     notes,
     goalNeedsNotes: true,
+    nature: {
+      falls: [
+        { x: FX, z: -45.5, y0: -0.4, y1: 7.2, w: 7 }, { x: FX, z: -49.5, y0: 7.2, y1: 14.4, w: 7 },
+        { x: FX, z: -52.5, y0: 14.4, y1: 20.4, w: 7 }, { x: 44, z: -45.5, y0: -0.4, y1: 7.2, w: 3 },
+      ],
+      waves: [{ x0: -110, x1: 110, z0: outer + 1.5, z1: outer + 34, y: -0.62 }],
+      crabs: [
+        { x: -6, z: 40, y: 0.2, range: 5 }, { x: 24, z: 35, y: 0.2, range: 4 }, { x: -33, z: 36, y: 0.2, range: 3 },
+        { x: 12, z: 43, y: 0.2, range: 4 },
+      ],
+      boats: [{ pos: [24, -0.7, 64] }, { pos: [-32, -0.7, 76] }, { pos: [52, -0.7, 88] }],
+      flyers: [
+        { center: [-37, 6, -10], radius: 5, kind: 'butterfly', color: C.yellow }, { center: [-37, 6, 14], radius: 5, kind: 'butterfly', color: C.orange },
+        { center: [38, 6, -6], radius: 5, kind: 'butterfly', color: C.white }, { center: [-8, 5.4, -6], radius: 7, kind: 'butterfly', color: C.orange },
+        { center: [10, 5.4, 4], radius: 6, kind: 'butterfly', color: C.yellow },
+        { center: [-10, 13, 52], radius: 12, kind: 'bird', color: C.white }, { center: [22, 15, 62], radius: 10, kind: 'bird', color: C.white },
+        { center: [-32, 12, -14], radius: 8, kind: 'bird', color: C.red }, { center: [32, 12, 12], radius: 8, kind: 'bird', color: C.blue },
+      ],
+      zones: [
+        { kind: 'sea', pos: [-35, 58], radius: 58 }, { kind: 'sea', pos: [0, 58], radius: 58 }, { kind: 'sea', pos: [35, 58], radius: 58 },
+        { kind: 'falls', pos: [FX, -46], radius: 62 },
+        { kind: 'jungle', pos: [-37, 0], radius: 48 }, { kind: 'jungle', pos: [37, 0], radius: 48 }, { kind: 'jungle', pos: [0, 0], radius: 42 },
+      ],
+    },
     meta: { pathLength: L, noteCells: noteBranches.map(b => b.cell), noteOrigins: noteBranches.map(b => b.origin) },
   }
 }

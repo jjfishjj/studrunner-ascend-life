@@ -7,7 +7,7 @@ import { CONFIG, DEFAULT_CONFIG } from '../game/config'
 import { GameWorld, PLAYER_R } from '../game/engine'
 import { buildLevel } from '../game/levels'
 import { readInput, resetInput } from '../game/input'
-import { sfx } from '../game/audio'
+import { setAmbience, sfx } from '../game/audio'
 import { useGame } from '../game/store'
 import type { Vec3 } from '../game/types'
 import { stageOf, NOTE_BY_ID } from '../game/notes'
@@ -35,7 +35,7 @@ const ATTRACT: Record<number, { focus: Vec3; dist: number; height: number; speed
   2: { focus: [0, 0, -50], dist: 46, height: 14, speed: 0.07 },
   3: { focus: [0, 0, -60], dist: 52, height: 14, speed: 0.06 },
   4: { focus: [0, 12, 0], dist: 32, height: 8, speed: 0.12 },
-  5: { focus: [0, 0, 0], dist: 36, height: 36, speed: 0.08 },
+  5: { focus: [4, 4, -4], dist: 78, height: 38, speed: 0.05 },
 }
 
 type Mode = 'play' | 'attract'
@@ -139,6 +139,21 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
     timers.current.push(t)
   }
 
+  // 環境音：依玩家與各自然區的距離調整海浪／瀑布／鳥鳴音量
+  const ambT = useRef(0)
+  const updateAmbience = () => {
+    const nat = world.level.nature
+    const now = performance.now()
+    if (!nat || now - ambT.current < 120) return
+    ambT.current = now
+    const px = world.player.position.x, pz = world.player.position.z
+    const lv = { sea: 0, falls: 0, jungle: 0 }
+    for (const z of nat.zones) {
+      const v = Math.max(0, 1 - Math.hypot(px - z.pos[0], pz - z.pos[1]) / z.radius)
+      if (v > lv[z.kind]) lv[z.kind] = v
+    }
+    setAmbience({ sea: lv.sea ** 1.3, falls: lv.falls ** 1.3, jungle: Math.min(1, lv.jungle * 1.4) })
+  }
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.1)
     const camera = state.camera as THREE.PerspectiveCamera
@@ -154,6 +169,7 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
       }
       alphaRef.current = world.status === 'playing' ? Math.min(1, acc.current / DT) : 1
       handleEvents()
+      updateAmbience()
       syncHud()
       checkEnd()
     } else {
@@ -184,6 +200,10 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
       camera.lookAt(focus.current.x, focus.current.y + 1.1, focus.current.z)
     }
 
+    if (import.meta.env.DEV) {
+      const o = (window as unknown as { __cam?: { pos: Vec3; look: Vec3 } }).__cam
+      if (o) { camera.position.set(...o.pos); camera.lookAt(...o.look) }
+    }
     // 太陽跟隨焦點（以 2 單位吸附，避免陰影閃爍）
     const sx = Math.round(focus.current.x / 2) * 2, sy = Math.round(focus.current.y / 2) * 2, sz = Math.round(focus.current.z / 2) * 2
     sun.position.set(sx + 16, sy + 36, sz + 12)

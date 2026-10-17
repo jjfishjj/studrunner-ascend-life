@@ -8,7 +8,7 @@ const studCount = (id: number) => {
 }
 
 describe('繪製預算', () => {
-  it.each([1, 2, 3])('關卡 %i 的凸點數量維持在預算內（避免低階 GPU 卡頓）', id => {
+  it.each([1, 2, 3, 4, 5])('關卡 %i 的凸點數量維持在預算內（避免低階 GPU 卡頓）', id => {
     expect(studCount(id)).toBeLessThan(9000)
   })
   it('凸點排列：每 1x1 一顆，且置中', () => {

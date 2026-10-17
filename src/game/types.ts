@@ -54,6 +54,19 @@ export interface LightSpec {
   hemiIntensity: number
   env: number
 }
+/** 會動的自然景物與環境音分區（目前五階使用）。座標皆為世界座標。 */
+export interface NatureDef {
+  /** 瀑布：從 y1 流到 y0，寬 w，面向 +z（水片位於 z） */
+  falls: { x: number; z: number; y0: number; y1: number; w: number }[]
+  /** 海浪：在 [x0,x1] 範圍內，從 z1 往岸邊 z0 推進 */
+  waves: { x0: number; x1: number; z0: number; z1: number; y: number }[]
+  crabs: { x: number; z: number; y: number; range: number }[]
+  boats: { pos: Vec3 }[]
+  /** 蝴蝶／小鳥：繞著中心飛 */
+  flyers: { center: Vec3; radius: number; kind: 'butterfly' | 'bird'; color: string }[]
+  /** 環境音分區：玩家離中心越近音量越大 */
+  zones: { kind: 'sea' | 'falls' | 'jungle'; pos: [number, number]; radius: number }[]
+}
 export interface SwitchSpec { pos: Vec3 }
 
 export interface CameraSpec {
@@ -98,6 +111,7 @@ export interface LevelDef {
   /** 可選：自訂光照（夜空場景較暗） */
   light?: LightSpec
   route?: RouteStep[]
+  nature?: NatureDef
   /** 錨點位置：用於 UI/測試（例如迷宮路徑長度） */
   meta?: { pathLength?: number; goalTop?: number; noteCells?: [number, number][]; noteOrigins?: number[] }
 }

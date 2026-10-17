@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import { useGame } from '../game/store'
 
 export const COLORS = { red: '#C91A09', yellow: '#F2CD37', blue: '#0055BF', green: '#237841', white: '#F2F3F2', black: '#1B2A34' }
 
@@ -65,5 +66,25 @@ export function NoteIcon({ size = 28, color = '#F2F3F2' }: { size?: number; colo
       <rect x="3" y="3" width="18" height="18" rx="3" fill={color} stroke="#1B2A34" strokeWidth="1.8" />
       <path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h5.5" stroke="#1B2A34" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
+  )
+}
+
+/** 右下角的喇叭按鈕：一眼看出音效開關（也可按 M）。 */
+export function SpeakerButton() {
+  const muted = useGame(s => s.save.muted)
+  const toggle = useGame(s => s.toggleMute)
+  return (
+    <button
+      onClick={e => { toggle(); (e.currentTarget as HTMLButtonElement).blur() }}
+      aria-label={muted ? '開啟音效' : '關閉音效'}
+      title={muted ? '音效：關（按 M 開啟）' : '音效：開（按 M 關閉）'}
+      data-testid="speaker"
+      className="absolute bottom-4 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full border-2 border-black/30 bg-white/90 shadow-lg transition-transform hover:scale-105"
+    >
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1B2A34" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4z" fill="#1B2A34" />
+        {muted ? <path d="M16 9.5l5 5M21 9.5l-5 5" /> : <><path d="M15.5 9a4 4 0 0 1 0 6" /><path d="M18 6.5a7.5 7.5 0 0 1 0 11" /></>}
+      </svg>
+    </button>
   )
 }

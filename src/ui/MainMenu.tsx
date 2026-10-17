@@ -22,7 +22,7 @@ function Staircase({ cleared }: { cleared: Set<string> }) {
 }
 
 export function MainMenu() {
-  const { start, goSelect, openNotes, save, toggleMute } = useGame()
+  const { start, goSelect, openNotes, openMusic, save, toggleMute } = useGame()
   const cleared = new Set(Object.keys(save.best))
   const hasProgress = save.notes.length > 0 || cleared.size > 0
   return (
@@ -59,6 +59,7 @@ export function MainMenu() {
           </div>
           <div className="flex items-center gap-4 text-xs font-bold text-white/60">
             <span>已通關 {cleared.size} / {LEVEL_COUNT}</span>
+            <button className="underline underline-offset-4 hover:text-white" onClick={() => { sfx.click(); openMusic('menu') }} data-testid="open-music">音樂設定</button>
             <button className="underline underline-offset-4 hover:text-white" onClick={toggleMute}>{save.muted ? '音效：關' : '音效：開'}（M）</button>
           </div>
         </div>

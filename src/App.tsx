@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { musicDuck, musicPlay, stopAmbience } from './game/audio'
 import { GameView } from './components/GameView'
 import { installInput } from './game/input'
 import { useGame } from './game/store'
@@ -6,12 +7,28 @@ import { Hud } from './ui/Hud'
 import { LevelSelect } from './ui/LevelSelect'
 import { MainMenu } from './ui/MainMenu'
 import { Notebook } from './ui/Notebook'
+import { MusicSettings } from './ui/MusicSettings'
+import { useMusic } from './game/musicLibrary'
+import { SpeakerButton } from './ui/parts'
 import { GameOver, PauseMenu, Victory } from './ui/Overlays'
 
 export default function App() {
   const screen = useGame(s => s.screen)
   const paused = useGame(s => s.paused)
 
+  const levelId = useGame(s => s.levelId)
+  // 載入曲庫與上傳過的音樂；網址帶 #admin（或 ?admin）直接進入音樂管理頁
+  useEffect(() => {
+    void useMusic.getState().init()
+    if (location.hash === '#admin' || new URLSearchParams(location.search).has('admin')) useGame.getState().openMusic('menu')
+  }, [])
+  // 背景音樂：選單 / 筆記本 = 主題曲，遊玩中 = 該階的曲子，結算畫面安靜（讓過關音效聽得到）
+  useEffect(() => {
+    if (screen === 'playing') musicPlay(levelId)
+    else if (screen === 'gameover' || screen === 'victory') { musicPlay(null); stopAmbience() }
+    else { musicPlay(0); stopAmbience() }
+  }, [screen, levelId])
+  useEffect(() => { musicDuck(screen === 'playing' && paused) }, [screen, paused])
   useEffect(() => {
     installInput()
     const onKey = (e: KeyboardEvent) => {
@@ -30,6 +47,7 @@ export default function App() {
       } else if (e.code === 'Escape') {
         if (s.screen === 'select') s.goMenu()
         else if (s.screen === 'notes') (s.notesFrom === 'select' ? s.goSelect : s.goMenu)()
+        else if (s.screen === 'music') (s.musicFrom === 'select' ? s.goSelect : s.goMenu)()
       }
     }
     const onHide = () => { if (document.hidden) useGame.getState().pause() }
@@ -44,10 +62,12 @@ export default function App() {
       {screen === 'menu' && <MainMenu />}
       {screen === 'select' && <LevelSelect />}
       {screen === 'notes' && <Notebook />}
+      {screen === 'music' && <MusicSettings />}
       {(screen === 'playing' || screen === 'gameover' || screen === 'victory') && <Hud />}
       {screen === 'playing' && paused && <PauseMenu />}
       {screen === 'gameover' && <GameOver />}
       {screen === 'victory' && <Victory />}
+      <SpeakerButton />
     </div>
   )
 }

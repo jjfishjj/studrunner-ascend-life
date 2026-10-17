@@ -5,7 +5,7 @@ import { setMuted, sfx, unlockAudio } from './audio'
 import { tuning } from './tuning'
 import type { LoseReason } from './engine'
 
-export type Screen = 'menu' | 'select' | 'notes' | 'playing' | 'gameover' | 'victory'
+export type Screen = 'menu' | 'select' | 'notes' | 'music' | 'playing' | 'gameover' | 'victory'
 
 export interface Hud {
   lives: number
@@ -52,6 +52,7 @@ interface Store {
   /** 本次遊玩撿到的筆記編號 */
   runNotes: string[]
   notesFrom: 'menu' | 'select'
+  musicFrom: 'menu' | 'select'
   result: RunResult | null
   save: SaveData
   /** 選單背景展示的關卡 */
@@ -62,6 +63,7 @@ interface Store {
   hurtFlash(): void
   collectNote(id: string): void
   openNotes(from: 'menu' | 'select'): void
+  openMusic(from: 'menu' | 'select'): void
   finish(r: Omit<RunResult, 'stars' | 'best' | 'newBest' | 'ranked'> & { parTime: number }): void
 
   goMenu(): void
@@ -95,6 +97,7 @@ export const useGame = create<Store>((set, get) => ({
   noteCard: null,
   runNotes: [],
   notesFrom: 'menu',
+  musicFrom: 'menu',
   result: null,
   save: loadSave(),
   attract: 1,
@@ -111,6 +114,7 @@ export const useGame = create<Store>((set, get) => ({
     }
     set(s => ({ save: nextSave, runNotes: runNotes.includes(id) ? runNotes : [...runNotes, id], noteCard: { id, nonce: (s.noteCard?.nonce ?? 0) + 1 } }))
   },
+  openMusic: from => set({ screen: 'music', musicFrom: from, paused: false, result: null, toast: null }),
   openNotes: from => set({ screen: 'notes', notesFrom: from, paused: false, result: null, toast: null }),
 
   finish: r => {

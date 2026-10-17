@@ -8,6 +8,7 @@ import { NOTE_BY_ID, stageOf } from '../game/notes'
 import { BRICK_H, type LevelDef } from '../game/types'
 import { BrickField } from './BrickField'
 import { LegoBrick } from './LegoBrick'
+import { Nature } from './Nature'
 import { plastic } from './brickKit'
 
 const DT = 1 / 60
@@ -206,6 +207,7 @@ export function LevelScene({ world, getAlpha }: { world: GameWorld; getAlpha: ()
       <Checkpoints world={world} />
       <Switches world={world} />
       <Goal world={world} />
+      <Nature level={level} />
     </>
   )
 }

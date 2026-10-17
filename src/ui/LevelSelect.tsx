@@ -6,7 +6,7 @@ import { NOTES, notesOfStage } from '../game/notes'
 import { Brick, COLORS, NoteIcon, NotePips, Stars } from './parts'
 
 export function LevelSelect() {
-  const { start, goMenu, openNotes, save, setAttract, attract } = useGame()
+  const { start, goMenu, openNotes, openMusic, save, setAttract, attract } = useGame()
   const got = new Set(save.notes)
   return (
     <div className="panel-backdrop absolute inset-0 flex flex-col overflow-y-auto px-5 py-7 md:px-10 md:py-9">
@@ -17,6 +17,7 @@ export function LevelSelect() {
         </div>
         <div className="flex gap-4">
           <button className="btn btn-yellow" onClick={() => { sfx.click(); openNotes('select') }} data-testid="open-notes"><NoteIcon size={24} />學習筆記 {save.notes.length}/{NOTES.length}</button>
+          <button className="btn btn-blue" onClick={() => { sfx.click(); openMusic('select') }} data-testid="open-music">音樂設定</button>
           <button className="btn btn-white" onClick={() => { sfx.click(); goMenu() }} data-testid="back">返回</button>
         </div>
       </div>
