@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "smoke": "node scripts/smoke.mjs",
-    "manus:build-source": "tsc --noEmit && vite build && node scripts/check-size.mjs"
+    "manus:build-source": "tsc --noEmit && vite build && node scripts/check-size.mjs",
+    "dev:local": "vite --host",
+    "build:local": "tsc --noEmit && vite build"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

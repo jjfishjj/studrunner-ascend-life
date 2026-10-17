@@ -82,3 +82,7 @@ resets it only at the next run using that run's active values. `Game` snapshots 
 `RunState.unranked`; local results cannot save such runs. Preserve this guard when changing
 scoring. When adding online leaderboards, skip submissions for unranked runs and enforce
 eligibility in the authoritative server too; client flags are not proof of a fair score.
+
+## 給接手開發者
+
+請先讀 [AGENTS.md](./AGENTS.md)（架構、指令、注意事項）。在 Manus 以外的環境請用 `pnpm dev:local` 與 `pnpm build:local`。
