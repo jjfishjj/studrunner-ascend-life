@@ -1,176 +1,127 @@
-import { BRICK_H, type BrickSpec, type LevelDef, type MoverSpec, type Vec3, type GateSpec } from '../types'
+import { BRICK_H, type BrickSpec, type LevelDef, type MoverSpec, type NoteSpec, type RouteStep, type Vec3 } from '../types'
 import { C, rng } from '../colors'
-import { cloud, tower } from './scenery'
-import { MAZE_TILES, TILE, cellToWorld, generateMaze, tileToWorld } from './maze'
+import { cloud, coinStack, flower, house, pixelHeart, tree } from './scenery'
 
-export const MAZE_SEED = 303
-export const WALL_LAYERS = 3
-export const WALL_H = BRICK_H * WALL_LAYERS
+const slab = (x: number, z: number, w: number, d: number, color: string, extra: Partial<BrickSpec> = {}): BrickSpec =>
+  ({ pos: [x, -BRICK_H, z], size: [w, BRICK_H, d], color, ...extra })
+
+/** 事業：紅白相間的辦公大樓 */
+function officeTower(x: number, z: number, baseY: number): BrickSpec[] {
+  const out: BrickSpec[] = []
+  for (let k = 0; k < 8; k++) {
+    out.push({ pos: [x, baseY + k * BRICK_H, z], size: [4, BRICK_H, 4], color: k % 2 ? C.white : C.red, collide: false, studs: k === 7 })
+    if (k % 2 === 0) out.push({ pos: [x, baseY + k * BRICK_H + 0.4, z + 2.02], size: [3, 0.5, 0.1], color: C.blue, collide: false, studs: false })
+  }
+  return out
+}
+
+const ISLAND_Z = [0, -30, -60, -90, -120]
+const ISLAND_COLORS = [C.red, C.yellow, C.blue, C.green, C.white]
 
 /**
- * 關卡 3：樂高迷宮－終極挑戰
- * 7x7 迷宮；路上有旋轉的低矮橫桿（跳過去）、週期升起的紅色陷阱塊、
- * 以及「踩下藍色按鈕後只開 12 秒」的限時閘門，整關另有倒數計時。
+ * 三階「親子與人生平衡」－五運群島
+ * 事業、財富、感情、家庭、身體五座空中島，由四段不同的浮橋相連：
+ * 上下起伏的升降平台、左右滑動的平台、旋轉橫桿橋、前後伸縮的平台。
+ * 筆記磚 09～12 分別放在前四座島上；身體島是終點。
  */
 export function buildLevel3(): LevelDef {
-  const maze = generateMaze(MAZE_SEED)
   const statics: BrickSpec[] = []
   const decor: BrickSpec[] = []
   const movers: MoverSpec[] = []
-  const coins: Vec3[] = []
-  const r = rng(404)
-  const T = MAZE_TILES
-  const half = (T * TILE) / 2
+  const r = rng(616)
 
-  // 地面碰撞板（含外圈）
-  statics.push({ pos: [0, -BRICK_H, 0], size: [T * TILE, BRICK_H, T * TILE], color: C.gray, visible: false })
-
-  // 路徑上的特殊格
-  const L = maze.path.length
-  const cellOf = (i: number) => cellToWorld(maze.path[i][0], maze.path[i][1])
-  const passOf = (i: number): { x: number; z: number; horizontal: boolean } => {
-    const [ax, az] = cellOf(i)
-    const [bx, bz] = cellOf(i + 1)
-    return { x: (ax + bx) / 2, z: (az + bz) / 2, horizontal: maze.path[i][1] === maze.path[i + 1][1] }
-  }
-  const spinnerAt = [Math.round(L * 0.2), Math.round(L * 0.62), Math.round(L * 0.84)]
-  const checkpointAt = Math.round(L * 0.4)
-  const switchAt = Math.round(L * 0.5)
-  const gateAt = Math.min(L - 4, switchAt + 5)
-  const trapPass = [Math.round(L * 0.1), Math.round(L * 0.3), switchAt + 2, Math.round(L * 0.74)]
-
-  // 預先標記「陷阱磚格」，地板視覺改為凹槽
-  const trapTiles = new Set<string>()
-  const trapSpecs: { x: number; z: number; phase: number; period: number }[] = []
-  trapPass.forEach((idx, k) => {
-    const p = passOf(idx)
-    trapSpecs.push({ x: p.x, z: p.z, phase: k * 0.9, period: 2.6 + (k % 2) * 0.4 })
-    const c = Math.round(p.x / TILE + (T - 1) / 2), rr = Math.round(p.z / TILE + (T - 1) / 2)
-    trapTiles.add(`${c},${rr}`)
+  // 五座島（12x12）：本體白色，四周鑲島色邊條
+  ISLAND_Z.forEach((z, k) => {
+    statics.push(slab(0, z, 12, 12, C.white))
+    const col = ISLAND_COLORS[k]
+    decor.push({ pos: [-5.5, 0, z], size: [1, 0.4, 12], color: col, collide: false })
+    decor.push({ pos: [5.5, 0, z], size: [1, 0.4, 12], color: col, collide: false })
+    for (let j = 1; j <= 3; j++) {
+      decor.push({ pos: [0, -BRICK_H * (j + 1), z], size: [Math.max(2, 12 - j * 3), BRICK_H, Math.max(2, 12 - j * 3)], color: j === 1 ? col : C.brown, collide: false, studs: false })
+    }
   })
 
-  // 地板視覺
-  for (let rr = 0; rr < T; rr++) {
-    for (let c = 0; c < T; c++) {
-      if (maze.walls[rr][c]) continue
-      const [x, z] = tileToWorld(c, rr)
-      if (trapTiles.has(`${c},${rr}`)) {
-        decor.push({ pos: [x, -1.6, z], size: [TILE, 0.4, TILE], color: C.black, collide: false, studs: false })
-      } else {
-        decor.push({ pos: [x, -0.6, z], size: [TILE, 0.4, TILE], color: (c + rr) % 2 ? C.gray : C.white, collide: false })
+  // 兩側的主題雕塑與矮台
+  ISLAND_Z.forEach((z, k) => {
+    for (const side of [-1, 1]) {
+      const x = side * 10.5
+      decor.push({ pos: [x, -BRICK_H * 2, z], size: [9, BRICK_H, 9], color: C.green, collide: false })
+      const base = -BRICK_H
+      if (k === 0) decor.push(...officeTower(x, z, base))
+      if (k === 1) decor.push(...coinStack(x, z, base, 8))
+      if (k === 2) decor.push(...pixelHeart(x, base, z, 0.8, side < 0 ? C.red : C.white, 1))
+      if (k === 3) decor.push(...house(x, z, base))
+      if (k === 4) {
+        decor.push(...tree(x, z, base, 1.6))
+        decor.push(...flower(x - 2.5, z + 2, base, C.red), ...flower(x + 2.5, z - 2, base, C.yellow))
       }
     }
-  }
-
-  // 牆：碰撞以「橫向連續牆段」合併；視覺以三層交錯磚疊起
-  const wallColors = [C.red, C.blue, C.yellow, C.green]
-  for (let rr = 0; rr < T; rr++) {
-    let c = 0
-    while (c < T) {
-      if (!maze.walls[rr][c]) { c++; continue }
-      let e = c
-      while (e + 1 < T && maze.walls[rr][e + 1]) e++
-      const len = e - c + 1
-      const [x0, z] = tileToWorld(c, rr)
-      const [x1] = tileToWorld(e, rr)
-      const cx = (x0 + x1) / 2
-      const w = len * TILE
-      statics.push({ pos: [cx, 0, z], size: [w, WALL_H, TILE], color: C.red, visible: false })
-      const base = wallColors[(rr * 3 + c) % wallColors.length]
-      for (let layer = 0; layer < WALL_LAYERS; layer++) {
-        // 每層以不同切點分段，製造磚牆交錯縫
-        let t0 = 0
-        const cuts: number[] = []
-        let step = layer % 2 ? 2 : 3
-        while (t0 < len) { const n = Math.min(len - t0, step); cuts.push(n); t0 += n; step = layer % 2 ? 3 : 2 }
-        let o = 0
-        cuts.forEach((n, k) => {
-          const bw = n * TILE
-          const bx = x0 - TILE / 2 + o * TILE + bw / 2
-          statics.push({
-            pos: [bx, layer * BRICK_H, z], size: [bw - 0.04, BRICK_H, TILE - 0.04],
-            color: layer === 1 ? (k % 2 ? C.white : base) : base, collide: false, studs: layer === WALL_LAYERS - 1,
-          })
-          o += n
-        })
-      }
-      c = e + 1
-    }
-  }
-
-  // 旋轉橫桿（低矮：跳過去！）
-  spinnerAt.forEach((idx, k) => {
-    const [x, z] = cellOf(idx)
-    movers.push({
-      id: `spin-${k}`, hazard: true,
-      brick: { pos: [x, 0, z], size: [TILE - 0.3, BRICK_H, 0.9], color: k % 2 ? C.yellow : C.red },
-      motion: { type: 'spin', speed: (k % 2 ? -1 : 1) * (1.7 + k * 0.25), phase: k },
-    })
-    // 中心軸
-    decor.push({ pos: [x, 0, z], size: [1, BRICK_H + 0.4, 1], color: C.black, collide: false })
   })
 
-  // 陷阱塊
-  trapSpecs.forEach((t, k) => {
-    movers.push({
-      id: `trap-${k}`, hazard: true,
-      brick: { pos: [t.x, 0, t.z], size: [TILE - 0.3, BRICK_H, TILE - 0.3], color: C.red },
-      motion: { type: 'pulse', rise: BRICK_H, period: t.period, up: 0.4, phase: t.phase },
-    })
+  // 第 1 段（事業→財富）：三個上下起伏的升降平台
+  ;[-9.5, -15, -20.5].forEach((z, k) => {
+    movers.push({ id: `elev-${k}`, brick: { pos: [0, -BRICK_H, z], size: [5, BRICK_H, 4], color: ISLAND_COLORS[0] }, motion: { type: 'slide', axis: 'y', amp: 0.9, speed: 1.4, phase: k * 2.1 } })
+  })
+  // 第 2 段（財富→感情）：三個左右滑動的平台
+  ;[-39.5, -45, -50.5].forEach((z, k) => {
+    movers.push({ id: `slide-${k}`, brick: { pos: [0, -BRICK_H, z], size: [5, BRICK_H, 4], color: ISLAND_COLORS[1] }, motion: { type: 'slide', axis: 'x', amp: 3.5, speed: 1.3, phase: k * 2.1 } })
+  })
+  // 第 3 段（感情→家庭）：窄橋 + 兩根旋轉橫桿
+  statics.push(slab(0, -75, 5, 18, C.white))
+  for (let z = -66; z > -84; z -= 2) decor.push({ pos: [0, 0, z - 1], size: [5, 0.4, 2], color: ((z / 2) | 0) % 2 ? C.red : C.white, collide: false })
+  ;[-71, -79].forEach((z, k) => {
+    movers.push({ id: `bar-${k}`, hazard: true, brick: { pos: [0, 0, z], size: [7, BRICK_H, 0.9], color: k ? C.yellow : C.red }, motion: { type: 'spin', speed: k ? -1.9 : 1.6, phase: k * 1.1 } })
+    decor.push({ pos: [0, 0, z], size: [1, BRICK_H + 0.4, 1], color: C.black, collide: false })
+  })
+  // 第 4 段（家庭→身體）：前後伸縮的平台
+  ;[-100.5, -105, -109.5].forEach((z, k) => {
+    movers.push({ id: `reach-${k}`, brick: { pos: [0, -BRICK_H, z], size: [5, BRICK_H, 4], color: ISLAND_COLORS[3] }, motion: { type: 'slide', axis: 'z', amp: 1.8, speed: 1.3, phase: k * 2.1 } })
   })
 
-  // 限時閘門
-  const gp = passOf(gateAt)
-  const gate: GateSpec = {
-    brick: { pos: [gp.x, 0, gp.z], size: gp.horizontal ? [1.2, WALL_H, TILE] : [TILE, WALL_H, 1.2], color: C.blue },
-    sink: WALL_H + 0.4, mode: 'switch', openSeconds: 12,
-  }
-  const [sx, sz] = cellOf(switchAt)
+  // 背景：雲海與飄浮的雲
+  decor.push({ pos: [0, -14, -60], size: [220, BRICK_H, 260], color: C.white, collide: false, studs: false })
+  for (let k = 0; k < 14; k++) decor.push(...cloud((r() - 0.5) * 120, -8 + r() * 28, -r() * 130 + 10, r))
 
-  // 金幣：死路優先，其餘放在路上
-  maze.deadEnds.slice(0, 6).forEach(([cx, cy]) => { const [x, z] = cellToWorld(cx, cy); coins.push([x, 1.4, z]) })
-  ;[Math.round(L * 0.3), Math.round(L * 0.7)].forEach(i => { const [x, z] = cellOf(i); coins.push([x, 1.4, z]) })
-
-  // 外圍裝飾
-  // 遠景底板（無凸點，節省繪製量）+ 迷宮外圍一圈有凸點的綠色底板
-  decor.push({ pos: [0, -8.4, 0], size: [150, BRICK_H, 150], color: C.darkGreen, collide: false, studs: false })
-  const ring = 14
-  const span = T * TILE + ring * 2
-  decor.push({ pos: [0, -BRICK_H, -(half + ring / 2)], size: [span, BRICK_H, ring], color: C.green, collide: false })
-  decor.push({ pos: [0, -BRICK_H, half + ring / 2], size: [span, BRICK_H, ring], color: C.green, collide: false })
-  decor.push({ pos: [-(half + ring / 2), -BRICK_H, 0], size: [ring, BRICK_H, T * TILE], color: C.green, collide: false })
-  decor.push({ pos: [half + ring / 2, -BRICK_H, 0], size: [ring, BRICK_H, T * TILE], color: C.green, collide: false })
-  for (let k = 0; k < 22; k++) {
-    const a = (k / 22) * Math.PI * 2 + r() * 0.2
-    const d = half + ring + 6 + r() * 14
-    decor.push(...tower(Math.cos(a) * d, Math.sin(a) * d, -7.2, 8 + Math.floor(r() * 10), r))
-  }
-  for (let k = 0; k < 8; k++) decor.push(...cloud((r() - 0.5) * 120, 16 + r() * 10, (r() - 0.5) * 120, r))
-
-  const [spx, spz] = cellOf(0)
-  const [gx, gz] = cellOf(L - 1)
-  const [cpx, cpz] = cellOf(checkpointAt)
-
+  const notes: NoteSpec[] = [
+    { id: '09', pos: [0, 1.9, -2] },
+    { id: '10', pos: [0, 1.9, -30] },
+    { id: '11', pos: [0, 1.9, -60] },
+    { id: '12', pos: [0, 1.9, -90] },
+  ]
+  const coins: Vec3[] = [
+    [-3, 1.5, -3], [0, 2.4, -15], [3, 1.5, -33], [0, 2.2, -45], [-3, 1.5, -63], [0, 2.8, -75], [3, 1.5, -93], [0, 2.0, -105],
+  ]
+  const route: RouteStep[] = [
+    { pos: [0, 0, 0] },
+    { pos: [0, 0, -9.5], mover: 'elev-0' }, { pos: [0, 0, -15], mover: 'elev-1' }, { pos: [0, 0, -20.5], mover: 'elev-2' },
+    { pos: [0, 0, -30] },
+    { pos: [0, 0, -39.5], mover: 'slide-0' }, { pos: [0, 0, -45], mover: 'slide-1' }, { pos: [0, 0, -50.5], mover: 'slide-2' },
+    { pos: [0, 0, -60] }, { pos: [0, 0, -75] },
+    { pos: [0, 0, -90] },
+    { pos: [0, 0, -100.5], mover: 'reach-0' }, { pos: [0, 0, -105], mover: 'reach-1' }, { pos: [0, 0, -109.5], mover: 'reach-2' },
+    { pos: [0, 0, -120] },
+  ]
   return {
     id: 3,
-    name: '樂高迷宮',
-    subtitle: '終極挑戰',
-    hint: '跳過旋轉橫桿、躲開紅色陷阱，踩下藍色按鈕後 12 秒內衝過閘門！',
+    name: '五運群島',
+    subtitle: '親子與人生平衡',
+    hint: '依序走過事業、財富、感情、家庭、身體五座島；浮橋會升降、滑動、旋轉與伸縮，抓準時機再跳。',
     lives: 5,
-    timeLimit: 100,
-    parTime: 60,
+    parTime: 110,
     requiredCoins: 0,
-    sky: '#7CCBF2',
-    fog: ['#BDE6F7', 60, 160],
-    spawn: [spx, 0.1, spz],
-    killY: -6,
-    camera: { distance: 5, height: 20, mode: 'follow', yaw: 0 },
+    sky: '#FFE2A8',
+    fog: ['#FFEFC9', 50, 170],
+    spawn: [0, 0.1, 3],
+    killY: -11,
+    fallDepth: 6,
+    camera: { distance: 10, height: 6.2, mode: 'follow', yaw: 0 },
+    light: { sun: '#FFE7B8', sunIntensity: 2.6, hemiSky: '#FFF1CF', hemiGround: '#B5A47A', hemiIntensity: 0.95, env: 0.5 },
     statics, decor, movers, coins,
-    checkpoints: [{ pos: [cpx, 0, cpz] }],
-    gate,
-    switches: [{ pos: [sx, 0, sz] }],
-    goal: [gx, 0, gz],
-    goalNeedsCoins: false,
-    meta: { pathLength: L },
+    checkpoints: [{ pos: [3.5, 0, -27] }, { pos: [3.5, 0, -57] }, { pos: [3.5, 0, -87] }],
+    switches: [],
+    goal: [0, 0, -120],
+    notes,
+    goalNeedsNotes: true,
+    route,
   }
 }

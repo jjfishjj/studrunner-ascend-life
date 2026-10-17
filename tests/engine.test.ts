@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { GameWorld, sphereHitsBox, type PlayerInput } from '../src/game/engine'
 import { buildLevel } from '../src/game/levels'
-import { MAZE_SEED } from '../src/game/levels/level3'
-import { cellToWorld, generateMaze } from '../src/game/levels/maze'
+import { MAZE_SEED } from '../src/game/levels/level5'
+import { MAZE_TILES, cellToWorld, generateMaze, tileToWorld } from '../src/game/levels/maze'
 import { motionPose } from '../src/game/motion'
 import { tuning } from '../src/game/tuning'
 import { CONFIG } from '../src/game/config'
-import type { BrickSpec, Vec3 } from '../src/game/types'
+import type { BrickSpec, RouteStep, Vec3 } from '../src/game/types'
+import { NOTES } from '../src/game/notes'
 
 const DT = 1 / 60
 const none: PlayerInput = { moveX: 0, moveZ: 0, jumpHeld: false, jumpPressed: false }
@@ -55,9 +56,28 @@ function runTo(w: GameWorld, bot: Bot, tx: number | (() => number), tz: number |
   return false
 }
 
+/** 依 route 逐一站上每個目標（移動平台會追著它走）。回傳失敗的那一步，成功則回傳 null。 */
+function runRoute(w: GameWorld, bot: Bot, route: RouteStep[], perStepSec = 16): RouteStep | null {
+  for (const step of route) {
+    const m = step.mover ? w.movers.find(x => x.spec.id === step.mover) : undefined
+    let ok = false
+    for (let i = 0; i < 60 * perStepSec && w.status === 'playing'; i++) {
+      const x = m ? m.center.x : step.pos[0]
+      const z = m ? m.center.z : step.pos[2]
+      const top = m ? m.center.y + m.spec.brick.size[1] / 2 : step.pos[1]
+      const d = bot.step(x, z)
+      if (d < 0.7 && Math.abs(w.feetY - top) < 0.45 && w.grounded) { ok = true; break }
+    }
+    if (w.status !== 'playing') return null
+    if (!ok) return step
+  }
+  return null
+}
+
 describe('motion', () => {
   it('slide 以正弦往返、spin 線性累積、pulse 週期升降', () => {
     expect(motionPose({ type: 'slide', axis: 'x', amp: 3, speed: 1 }, Math.PI / 2).dx).toBeCloseTo(3)
+    expect(motionPose({ type: 'slide', axis: 'y', amp: 1, speed: 1 }, Math.PI / 2).dy).toBeCloseTo(1)
     expect(motionPose({ type: 'spin', speed: 2 }, 3).angle).toBeCloseTo(6)
     const m = { type: 'pulse', rise: 1.2, period: 2, up: 0.5 } as const
     expect(motionPose(m, 0.5).raised).toBe(1)
@@ -73,22 +93,47 @@ describe('motion', () => {
 })
 
 describe('關卡資料', () => {
-  it('三個關卡皆可建立，具起點、終點與碰撞體', () => {
-    for (const id of [1, 2, 3]) {
+  it('五個關卡皆可建立，具起點、終點、碰撞體與 4 張筆記磚', () => {
+    for (const id of [1, 2, 3, 4, 5]) {
       const l = buildLevel(id)
       expect(l.statics.some(b => b.collide !== false)).toBe(true)
       expect(l.goal).toHaveLength(3)
       expect(l.lives).toBeGreaterThan(0)
+      expect(l.notes).toHaveLength(4)
+      expect(l.goalNeedsNotes).toBe(true)
     }
   })
-  it('關卡 1 恰有 10 枚金幣並需要全部收集', () => {
+  it('20 張筆記磚恰好各出現一次，且編號與所屬階段一致', () => {
+    const seen: string[] = []
+    for (const id of [1, 2, 3, 4, 5]) {
+      for (const n of buildLevel(id).notes) {
+        const def = NOTES.find(x => x.id === n.id)
+        expect(def, `未知筆記 ${n.id}`).toBeTruthy()
+        expect(def!.stage).toBe(id)
+        seen.push(n.id)
+      }
+    }
+    expect(seen.sort()).toEqual(NOTES.map(n => n.id).sort())
+    expect(new Set(seen).size).toBe(20)
+  })
+  it('關卡 1 恰有 10 枚金幣與 3 道以上的移動牆，閘門由筆記磚驅動', () => {
     const l = buildLevel(1)
     expect(l.coins).toHaveLength(10)
-    expect(l.requiredCoins).toBe(10)
+    expect(l.gate?.mode).toBe('notes')
     expect(l.movers.filter(m => m.hazard && m.motion.type === 'slide').length).toBeGreaterThanOrEqual(3)
   })
-  it('關卡 3 有旋轉障礙物、陷阱塊、限時閘門與倒數', () => {
-    const l = buildLevel(3)
+  it('關卡 2 有滑動平台、陷阱與旋轉橫桿；關卡 3 有升降、滑動、旋轉與伸縮', () => {
+    const l2 = buildLevel(2)
+    expect(l2.movers.some(m => m.motion.type === 'slide')).toBe(true)
+    expect(l2.movers.some(m => m.motion.type === 'pulse')).toBe(true)
+    expect(l2.movers.some(m => m.motion.type === 'spin')).toBe(true)
+    const l3 = buildLevel(3)
+    const axes = new Set(l3.movers.filter(m => m.motion.type === 'slide').map(m => (m.motion as { axis: string }).axis))
+    expect([...axes].sort()).toEqual(['x', 'y', 'z'])
+    expect(l3.movers.some(m => m.motion.type === 'spin')).toBe(true)
+  })
+  it('關卡 5 有旋轉障礙物、陷阱塊、限時閘門與倒數', () => {
+    const l = buildLevel(5)
     expect(l.movers.some(m => m.motion.type === 'spin')).toBe(true)
     expect(l.movers.some(m => m.motion.type === 'pulse')).toBe(true)
     expect(l.gate?.mode).toBe('switch')
@@ -126,7 +171,7 @@ describe('角色物理', () => {
     expect(jumpHeight(false)).toBeLessThan(jumpHeight(true) - 0.5)
   })
   it('牆壁無摩擦：不會黏在牆上', () => {
-    const w = new GameWorld(buildLevel(3))
+    const w = new GameWorld(buildLevel(5))
     for (let i = 0; i < 400; i++) w.step(DT, { ...none, moveX: -1 })
     expect(w.player.position.y).toBeLessThan(1)
   })
@@ -135,7 +180,6 @@ describe('角色物理', () => {
     const m = w.movers[0]
     for (let i = 0; i < 30; i++) w.step(DT, none)
     const before = w.lives
-    // 把玩家放到牆旁
     w.player.position.set(m.center.x + 1.6, 0.5, m.center.z)
     w.step(DT, none)
     expect(w.lives).toBe(before - 1)
@@ -170,40 +214,80 @@ describe('角色物理', () => {
   })
 })
 
+describe('筆記磚', () => {
+  it('走到筆記磚上會收集，觸發事件並計數', () => {
+    const w = new GameWorld(buildLevel(1))
+    const n = w.level.notes[0]
+    w.player.position.set(n.pos[0], 0.5, n.pos[2])
+    w.step(DT, none)
+    expect(w.notesGot).toBe(1)
+    const ev = w.drainEvents().filter(e => e.type === 'note')
+    expect(ev).toHaveLength(1)
+    w.player.position.set(n.pos[0], 0.5, n.pos[2])
+    w.step(DT, none)
+    expect(w.notesGot).toBe(1)
+  })
+  it('筆記磚不足時終點上鎖並提示還差幾張', () => {
+    const w = new GameWorld(buildLevel(2))
+    const g = w.level.goal
+    w.player.position.set(g[0], 0.5, g[2])
+    w.step(DT, none)
+    expect(w.status).toBe('playing')
+    const ev = w.drainEvents().find(e => e.type === 'goalLocked')
+    expect(ev && ev.type === 'goalLocked' ? ev.need : 0).toBe(4)
+    w.noteCollected.fill(true)
+    w.step(DT, none)
+    expect(w.status).toBe('won')
+  })
+})
+
 describe('機器人通關', () => {
-  it('關卡 1：收集 10 枚金幣、閘門打開並抵達終點', () => {
+  it('關卡 1：收齊 10 枚金幣與 4 張筆記磚、閘門打開並抵達終點', () => {
     const w = new GameWorld(buildLevel(1))
     w.lives = 99
     const bot = new Bot(w)
-    for (const c of w.level.coins) {
+    const pts = [...w.level.coins.map(c => c), ...w.level.notes.map(n => n.pos)].sort((a, b) => b[2] - a[2])
+    for (const c of pts) {
       runTo(w, bot, c[0], c[2], 14, 0.7)
       if (w.status !== 'playing') break
     }
     expect(w.coins).toBe(10)
+    expect(w.notesGot).toBe(4)
     expect(w.gateAmount).toBeGreaterThan(0)
     runTo(w, bot, w.level.goal[0], w.level.goal[2], 14, 0.6)
     expect(w.status).toBe('won')
   })
-  it('關卡 1：金幣不足時閘門擋住終點', () => {
+  it('關卡 1：筆記磚不足時閘門擋住終點', () => {
     const w = new GameWorld(buildLevel(1))
     w.lives = 99
     const bot = new Bot(w)
     runTo(w, bot, 0, -83, 40, 0.6)
-    expect(w.coins).toBeLessThan(10)
+    expect(w.notesGot).toBeLessThan(4)
     expect(w.status).toBe('playing')
     expect(w.player.position.z).toBeGreaterThan(-86)
   })
-  it('關卡 2：能沿浮空積木階梯登頂', () => {
-    const w = new GameWorld(buildLevel(2))
+  for (const id of [2, 3]) {
+    it(`關卡 ${id}：機器人沿建議路線走完，收齊 4 張筆記磚並抵達終點`, () => {
+      const w = new GameWorld(buildLevel(id))
+      w.lives = 99
+      const bot = new Bot(w)
+      const failed = runRoute(w, bot, w.level.route!, 25)
+      expect(failed, `卡在 ${JSON.stringify(failed)}`).toBeNull()
+      expect(w.notesGot).toBe(4)
+      runTo(w, bot, w.level.goal[0], w.level.goal[2], 10, 0.6)
+      expect(w.status).toBe('won')
+    })
+  }
+  it('關卡 4：能沿浮空積木階梯登頂並收齊筆記磚', () => {
+    const w = new GameWorld(buildLevel(4))
     w.lives = 99
     const bot = new Bot(w)
     const steps: Array<{ top: number; at: () => [number, number] }> = []
     const lvl = w.level
-    const pillarTop = 0
     for (const b of lvl.statics as BrickSpec[]) {
       if (b.collide === false || b.visible === false) continue
-      if (b.pos[1] + b.size[1] <= pillarTop + 0.01) continue
-      if (b.size[0] >= 6 && b.size[1] === 1.2 && b.pos[1] === 0 && b.size[0] === 4 && Math.abs(b.pos[0]) < 0.1) continue
+      if (b.pos[1] + b.size[1] <= 0.01) continue
+      if (b.size[0] === 4 && b.pos[1] === 0 && Math.abs(b.pos[0]) < 0.1) continue
       steps.push({ top: b.pos[1] + b.size[1], at: () => [b.pos[0], b.pos[2]] })
     }
     for (const m of w.movers) steps.push({ top: m.spec.brick.pos[1] + m.spec.brick.size[1], at: () => [m.center.x, m.center.z] })
@@ -220,46 +304,72 @@ describe('機器人通關', () => {
       reached++
       if (w.status !== 'playing') break
     }
-    expect(w.status === 'won' || reached >= steps.length - 1).toBe(true)
+    expect(reached).toBeGreaterThanOrEqual(steps.length - 1)
+    expect(w.notesGot).toBe(4)
     runTo(w, bot, w.level.goal[0], w.level.goal[2], 8, 0.6)
     expect(w.status).toBe('won')
   })
 })
 
-describe('關卡 3 迷宮', () => {
-  it('機器人沿迷宮路徑走完：踩按鈕、趕在閘門關閉前通過並抵達終點', () => {
-    const w = new GameWorld(buildLevel(3))
+/** 迷宮磚格上的 BFS 路線（回傳每格的世界座標） */
+function tileRoute(maze: ReturnType<typeof generateMaze>, from: [number, number], to: [number, number]): [number, number][] {
+  const T = MAZE_TILES
+  const start: [number, number] = [from[0] * 2 + 1, from[1] * 2 + 1]
+  const goal: [number, number] = [to[0] * 2 + 1, to[1] * 2 + 1]
+  const prev = new Map<string, [number, number] | null>([[start.join(), null]])
+  const q: [number, number][] = [start]
+  for (let h = 0; h < q.length; h++) {
+    const [c, r] = q[h]
+    if (c === goal[0] && r === goal[1]) break
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nc = c + dc, nr = r + dr
+      if (nc < 0 || nr < 0 || nc >= T || nr >= T || maze.walls[nr][nc] || prev.has([nc, nr].join())) continue
+      prev.set([nc, nr].join(), [c, r])
+      q.push([nc, nr])
+    }
+  }
+  const out: [number, number][] = []
+  for (let c: [number, number] | null | undefined = goal; c; c = prev.get(c.join())) out.unshift(tileToWorld(c[0], c[1]))
+  return out.slice(1)
+}
+
+describe('關卡 5 迷宮', () => {
+  it('機器人沿迷宮路徑走完：繞去死路收齊 4 張筆記磚、踩按鈕、趕在閘門關閉前通過並抵達終點', () => {
+    const w = new GameWorld(buildLevel(5))
     w.lives = 99
     const bot = new Bot(w)
-    const sw = w.level.switches[0].pos
     const gate = w.level.gate!.brick.pos
-    const cells = (w.level.meta!.pathLength as number)
-    expect(cells).toBeGreaterThan(10)
-    // 以 BFS 路徑還原的格中心當作路標
     const maze = generateMaze(MAZE_SEED)
+    const noteCells = w.level.meta!.noteCells!
+    const noteOrigins = w.level.meta!.noteOrigins!
+    expect(noteCells).toHaveLength(4)
     const pts: [number, number][] = []
     maze.path.forEach(([cx, cy], i) => {
       const [x, z] = cellToWorld(cx, cy)
       if (i > 0) { const [px, pz] = cellToWorld(maze.path[i - 1][0], maze.path[i - 1][1]); pts.push([(x + px) / 2, (z + pz) / 2]) }
       pts.push([x, z])
+      noteOrigins.forEach((o, k) => {
+        if (o !== i) return
+        const out = tileRoute(maze, [cx, cy], noteCells[k])
+        pts.push(...out, ...out.slice(0, -1).reverse(), [x, z])
+      })
     })
     let passedGate = false
     for (const [x, z] of pts) {
-      // 閘門尚未開啟就不要硬闖：等待時間用走回按鈕解決，這裡直接前進
       const ok = runTo(w, bot, x, z, 20, 0.7)
-      if (Math.hypot(x - gate[0], z - gate[2]) < 0.1 && w.player.position.x !== undefined) passedGate = true
+      if (Math.hypot(x - gate[0], z - gate[2]) < 0.1) passedGate = true
       if (!ok || w.status !== 'playing') break
     }
-    void sw
     expect(passedGate).toBe(true)
+    expect(w.notesGot).toBe(4)
     expect(w.status).toBe('won')
-    expect(w.time).toBeLessThan(100)
+    expect(w.time).toBeLessThan(120)
   })
 })
 
-describe('關卡 3 機關', () => {
+describe('關卡 5 機關', () => {
   it('旋轉橫桿與陷阱塊會傷人，閘門需踩按鈕才開', () => {
-    const w = new GameWorld(buildLevel(3))
+    const w = new GameWorld(buildLevel(5))
     const g = w.level.gate!
     expect(w.gateAmount).toBe(0)
     const sw = w.level.switches[0].pos
@@ -268,7 +378,6 @@ describe('關卡 3 機關', () => {
     expect(w.gateTimer).toBeGreaterThan(11)
     for (let i = 0; i < 90; i++) w.step(DT, none)
     expect(w.gateAmount).toBeGreaterThan(0.5)
-    // 閘門 12 秒後關閉
     w.player.position.set(sw[0] + 8, 0.5, sw[2])
     for (let i = 0; i < 60 * 15; i++) w.step(DT, none)
     expect(w.gateTimer).toBe(0)
@@ -276,10 +385,10 @@ describe('關卡 3 機關', () => {
     expect(g.mode).toBe('switch')
   })
   it('倒數歸零即時間到', () => {
-    const w = new GameWorld(buildLevel(3))
+    const w = new GameWorld(buildLevel(5))
     w.lives = 99
     w.step(DT, { ...none, moveZ: 1 })
-    for (let i = 0; i < 60 * 101 && w.status === 'playing'; i++) { w.invul = 5; w.step(DT, none) }
+    for (let i = 0; i < 60 * 121 && w.status === 'playing'; i++) { w.invul = 5; w.step(DT, none) }
     expect(w.status).toBe('lost')
     expect(w.loseReason).toBe('time')
   })

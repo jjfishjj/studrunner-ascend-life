@@ -1,4 +1,6 @@
-# Stud Runner：樂高積木闖關
+# 揚升人生：樂高積木五階闖關（Stud Runner）
+
+五階學習筆記 × 3D 樂高闖關：一階「原點大道」、二階「心橋」、三階「五運群島」、四階「揚升之塔」、五階「合一迷宮」。每關集齊 4 張筆記磚才能打開終點，共 20 張，對應 20 個筆記分類；筆記內容在 `src/game/notes.ts`（四階為公開資訊概略整理，標示「待補充」，可改成自己的內容）。
 
 用 React Three Fiber 打造的 3D 樂高風格第三人稱平台闖關遊戲。**所有可見物體（角色、地形、障礙、金幣、樹木、雲朵）都是程式碼動態生成的帶凸點（Studs）積木**，沒有任何外部模型或貼圖。
 
@@ -18,7 +20,7 @@
 pnpm install
 pnpm dev        # 開發伺服器
 pnpm build      # 型別檢查 + 建置 + 體積預算
-pnpm test       # 單元測試（規則、物理、三關機器人通關、繪製預算）
+pnpm test       # 單元測試（規則、物理、五關機器人通關、繪製預算）
 pnpm smoke      # 建置後的瀏覽器端到端測試（截圖輸出到 shots/）
 ```
 
@@ -45,7 +47,7 @@ pnpm smoke      # 建置後的瀏覽器端到端測試（截圖輸出到 shots/�
 | `src/components/LevelScene.tsx` | 機關、閘門、金幣、檢查點、按鈕、終點 |
 | `src/components/GameView.tsx` | Canvas、固定 60Hz 模擬、攝影機、事件→特效/音效/UI |
 | `src/game/engine.ts` | 與渲染無關的物理與規則核心（可在 Node 測試） |
-| `src/game/levels/*.ts` | 三個關卡的資料與生成邏輯（迷宮為 DFS + BFS） |
+| `src/game/levels/*.ts` | 五個關卡的資料與生成邏輯（迷宮為 DFS + BFS） |
 | `src/game/tuning.ts` / `config.ts` | Tweak 參數管理器（保留開發期調校橋接） |
 | `src/ui/*` | 開始選單、關卡選擇、HUD、暫停、遊戲結束、通關結算 |
 

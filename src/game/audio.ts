@@ -63,6 +63,7 @@ function noise(dur: number, vol = 0.2, delay = 0) {
 export const sfx = {
   click: () => tone(520, 0.07, 'square', 0.1),
   coin: () => { tone(988, 0.08, 'square', 0.14); tone(1318, 0.18, 'square', 0.14, undefined, 0.07) },
+  note: () => { [659, 784, 988, 1319].forEach((f, i) => tone(f, 0.22, 'triangle', 0.16, undefined, i * 0.07)) },
   jump: () => tone(300, 0.16, 'sine', 0.2, 640),
   land: () => noise(0.1, 0.25),
   hurt: () => { tone(220, 0.3, 'sawtooth', 0.2, 70); noise(0.18, 0.25) },

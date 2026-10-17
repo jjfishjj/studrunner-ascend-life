@@ -1,104 +1,123 @@
-import { BRICK_H, type BrickSpec, type LevelDef, type MoverSpec, type Vec3 } from '../types'
-import { C, CLASSIC, rng } from '../colors'
-import { cloud } from './scenery'
+import { BRICK_H, type BrickSpec, type LevelDef, type MoverSpec, type NoteSpec, type RouteStep, type Vec3 } from '../types'
+import { C, rng } from '../colors'
+import { cloud, pixelHeart } from './scenery'
 
-const R = 8
-const SIDE = R * 2
-const PERIM = SIDE * 4
+/** 頂面 y = 0 的實心積木板（中心 x、z）。 */
+const slab = (x: number, z: number, w: number, d: number, color: string, extra: Partial<BrickSpec> = {}): BrickSpec =>
+  ({ pos: [x, -BRICK_H, z], size: [w, BRICK_H, d], color, ...extra })
 
-/** 沿著邊長 16 的方形環繞路徑取點；回傳座標與所在邊的切線/法線軸。 */
-export function perimeterPoint(s: number): { x: number; z: number; side: number } {
-  const t = ((s % PERIM) + PERIM) % PERIM
-  const side = Math.floor(t / SIDE)
-  const u = t - side * SIDE
-  switch (side) {
-    case 0: return { x: -R + u, z: R, side }
-    case 1: return { x: R, z: R - u, side }
-    case 2: return { x: R - u, z: -R, side }
-    default: return { x: -R, z: -R + u, side }
+/** 島嶼下方逐層縮小的棕色基座（純裝飾）。 */
+function islandBase(x: number, z: number, w: number, d: number, out: BrickSpec[]) {
+  for (let k = 1; k <= 3; k++) {
+    const sw = Math.max(2, w - k * 3), sd = Math.max(2, d - k * 3)
+    out.push({ pos: [x, -BRICK_H * (k + 1), z], size: [sw, BRICK_H, sd], color: k === 1 ? C.darkGreen : C.brown, collide: false, studs: false })
   }
 }
 
-export const TOWER_STEPS = 30
-
 /**
- * 關卡 2：積木高塔－垂直跳躍
- * 中央彩色高柱，四周以方形螺旋排列 30 塊浮空積木，越往上間距越大、積木越小，
- * 中途有會移動的平台與三個檢查點，頂端是金色獎盃。
+ * 二階「情感與親密關係」－心橋
+ * 一座座漂浮在湖面上的心形浮橋：先踩幾塊小浮板、搭上左右滑動的平台、
+ * 通過「爭吵」陷阱走廊、跳過旋轉橫桿，最後抵達愛心雕塑下的終點島。
+ * 筆記磚 05～08；集齊才能通過終點。
  */
 export function buildLevel2(): LevelDef {
   const statics: BrickSpec[] = []
   const decor: BrickSpec[] = []
   const movers: MoverSpec[] = []
-  const coins: Vec3[] = []
-  const checkpoints: { pos: Vec3 }[] = []
-  const r = rng(202)
+  const r = rng(515)
 
-  // 起始浮島
-  statics.push({ pos: [0, -BRICK_H, 0], size: [22, BRICK_H, 22], color: C.green })
-  decor.push({ pos: [0, -BRICK_H * 2, 0], size: [18, BRICK_H, 18], color: C.darkGreen, collide: false, studs: false })
-  decor.push({ pos: [0, -BRICK_H * 3, 0], size: [12, BRICK_H, 12], color: C.brown, collide: false, studs: false })
-  decor.push({ pos: [0, -BRICK_H * 4, 0], size: [6, BRICK_H, 6], color: C.brown, collide: false, studs: false })
-
-  // 中央高柱（碰撞體一個，視覺分層上色）
-  const pillarLevels = TOWER_STEPS + 4
-  statics.push({ pos: [0, 0, 0], size: [4, BRICK_H * pillarLevels, 4], color: C.white, visible: false })
-  for (let k = 0; k < pillarLevels; k++) {
-    statics.push({ pos: [0, k * BRICK_H, 0], size: [4, BRICK_H, 4], color: CLASSIC[k % 4], collide: false, studs: k === pillarLevels - 1 })
+  // A：起點島
+  statics.push(slab(0, 2, 12, 12, C.white))
+  islandBase(0, 2, 12, 12, decor)
+  // 三塊小浮板
+  const steps: [number, number, string][] = [[0, -9, C.red], [-3, -16, C.yellow], [3, -23, C.red]]
+  for (const [x, z, c] of steps) statics.push(slab(x, z, 4, 4, c))
+  // 兩個左右滑動的平台（相位相反）
+  const lanes: [string, number, number][] = [['slide-a', -28, 0], ['slide-b', -33, Math.PI]]
+  for (const [id, z, phase] of lanes) {
+    movers.push({ id, brick: { pos: [0, -BRICK_H, z], size: [4, BRICK_H, 4], color: C.blue }, motion: { type: 'slide', axis: 'x', amp: 3.5, speed: 1.2, phase } })
   }
-
-  let s = 3
-  for (let i = 0; i < TOWER_STEPS; i++) {
-    const p = perimeterPoint(s)
-    const top = BRICK_H * (i + 1)
-    const w = i < 10 ? 4 : i < 20 ? 3 : 2
-    const isCheckpoint = i === 7 || i === 15 || i === 23
-    const size: Vec3 = isCheckpoint ? [4, BRICK_H, 4] : [w, BRICK_H, w]
-    const color = isCheckpoint ? C.white : CLASSIC[(i * 3) % 4]
-    const brick: BrickSpec = { pos: [p.x, top - BRICK_H, p.z], size, color }
-    if (i === 11 || i === 19 || i === 26) {
-      // 會移動的平台：沿法線（內外）或切線來回
-      const radial = i !== 26
-      const axis: 'x' | 'z' = (p.side % 2 === 0) === radial ? 'z' : 'x'
-      movers.push({ id: `lift-${i}`, brick: { ...brick, color: C.orange }, motion: { type: 'slide', axis, amp: radial ? 1.8 : 1.0, speed: 1.1 + i * 0.01 } })
-    } else {
-      statics.push(brick)
-    }
-    if (isCheckpoint) checkpoints.push({ pos: [p.x, top, p.z] })
-    if ([3, 6, 10, 13, 17, 21, 25, 28].includes(i)) coins.push([p.x, top + 1.5, p.z])
-    s += 3.9 + 1.7 * (i / TOWER_STEPS)
+  // B：中繼島（檢查點）
+  statics.push(slab(0, -43, 12, 12, C.white))
+  islandBase(0, -43, 12, 12, decor)
+  // 走廊：寬 4、長 26，三個週期升起的紅色陷阱
+  const corridorZ0 = -49, corridorZ1 = -75
+  statics.push(slab(0, (corridorZ0 + corridorZ1) / 2, 4, corridorZ0 - corridorZ1, C.darkGray, { visible: false }))
+  let i = 0
+  for (let z = corridorZ0; z > corridorZ1; z -= 2, i++) {
+    statics.push(slab(0, z - 1, 4, 2, i % 2 ? C.gray : C.white, { collide: false }))
+    for (const sx of [-2.25, 2.25]) decor.push({ pos: [sx, 0, z - 1], size: [0.5, 0.4, 2], color: i % 2 ? C.red : C.white, collide: false, studs: false })
   }
-  // 塔頂平台
-  const g = perimeterPoint(s + 0.8)
-  const goalTop = BRICK_H * (TOWER_STEPS + 1)
-  statics.push({ pos: [g.x, goalTop - BRICK_H, g.z], size: [6, BRICK_H, 6], color: C.yellow })
-  decor.push({ pos: [g.x, goalTop - BRICK_H * 2, g.z], size: [4, BRICK_H, 4], color: C.orange, collide: false, studs: false })
+  const trapZ = [-55, -63, -71]
+  trapZ.forEach((z, k) => {
+    movers.push({
+      id: `quarrel-${k}`, hazard: true,
+      brick: { pos: [0, 0, z], size: [3.7, BRICK_H, 3.7], color: C.red },
+      motion: { type: 'pulse', rise: BRICK_H, period: 2.8 + (k % 2) * 0.4, up: 0.4, phase: k * 1.0 },
+    })
+  })
+  // C：旋轉橫桿島（檢查點在入口）
+  statics.push(slab(0, -85, 18, 18, C.white))
+  islandBase(0, -85, 18, 18, decor)
+  ;[[-4.5, 1.8], [4.5, -2.0]].forEach(([x, sp], k) => {
+    movers.push({
+      id: `misunderstand-${k}`, hazard: true,
+      brick: { pos: [x, 0, -85], size: [9, BRICK_H, 0.9], color: k ? C.yellow : C.red },
+      motion: { type: 'spin', speed: sp, phase: k * 1.3 },
+    })
+    decor.push({ pos: [x, 0, -85], size: [1, BRICK_H + 0.4, 1], color: C.black, collide: false })
+  })
+  // D：終點島 + 愛心雕塑
+  statics.push(slab(0, -104, 12, 14, C.white))
+  islandBase(0, -104, 12, 14, decor)
+  decor.push(...pixelHeart(0, 0, -109.6, 1.3, C.red))
+  for (const sx of [-5.4, 5.4]) for (let k = 0; k < 3; k++) decor.push({ pos: [sx, k * BRICK_H, -100], size: [1.2, BRICK_H, 1.2], color: k % 2 ? C.white : C.red, collide: false })
 
-  for (let k = 0; k < 16; k++) {
-    const a = r() * Math.PI * 2
-    const d = 26 + r() * 30
-    decor.push(...cloud(Math.cos(a) * d, -6 + r() * 50, Math.sin(a) * d, r))
+  // 背景：湖面、飄浮的小愛心與雲
+  decor.push({ pos: [0, -9.6, -50], size: [150, BRICK_H, 200], color: C.blue, collide: false, studs: false })
+  for (let k = 0; k < 10; k++) {
+    const side = k % 2 ? 1 : -1
+    decor.push(...pixelHeart(side * (17 + r() * 14), -3 + r() * 6, -r() * 110 + 5, 0.55 + r() * 0.35, r() < 0.5 ? C.red : C.white, 0.6))
   }
-  decor.push({ pos: [0, -46, 0], size: [160, BRICK_H, 160], color: C.blue, collide: false, studs: false })
+  for (let k = 0; k < 10; k++) decor.push(...cloud((r() - 0.5) * 90, 12 + r() * 10, -k * 12 + 8, r))
 
+  const notes: NoteSpec[] = [
+    { id: '05', pos: [-3, 1.9, -16] },
+    { id: '06', pos: [-3.5, 1.9, -43] },
+    { id: '07', pos: [0, 1.9, -67] },
+    { id: '08', pos: [0, 1.9, -91] },
+  ]
+  const coins: Vec3[] = [
+    [0, 1.5, -9], [3, 1.5, -23], [3.5, 1.5, -46], [0, 1.5, -59], [0, 1.5, -74],
+    [-7, 1.5, -80], [7, 1.5, -90], [0, 1.5, -101],
+  ]
+  const route: RouteStep[] = [
+    { pos: [0, 0, 2] }, { pos: [0, 0, -9] }, { pos: [-3, 0, -16] }, { pos: [3, 0, -23] },
+    { pos: [0, 0, -28], mover: 'slide-a' }, { pos: [0, 0, -33], mover: 'slide-b' },
+    { pos: [0, 0, -43] }, { pos: [-3.5, 0, -43] }, { pos: [0, 0, -52] }, { pos: [0, 0, -59] }, { pos: [0, 0, -67] }, { pos: [0, 0, -75] },
+    { pos: [0, 0, -78] }, { pos: [0, 0, -91] }, { pos: [0, 0, -104] },
+  ]
   return {
     id: 2,
-    name: '積木高塔',
-    subtitle: '垂直跳躍',
-    hint: '按住 D（→）沿著螺旋向上，跳上浮空積木直達塔頂！',
+    name: '心橋',
+    subtitle: '情感與親密關係',
+    hint: '搭上滑動平台、等紅色陷阱縮回去再通過、跳過旋轉橫桿，一路收集 4 張筆記磚。',
     lives: 5,
-    parTime: 75,
+    parTime: 95,
     requiredCoins: 0,
-    sky: '#8AD4F5',
-    fog: ['#CFEFFB', 50, 150],
-    spawn: [-5, 0.1, 3.6],
-    killY: -12,
+    sky: '#F6B4B7',
+    fog: ['#FAD2CB', 45, 150],
+    spawn: [0, 0.1, 3],
+    killY: -9,
     fallDepth: 6,
-    camera: { distance: 10, height: 5, mode: 'orbit', center: [0, 0, 0] },
-    statics, decor, movers, coins, checkpoints,
+    camera: { distance: 9.5, height: 6, mode: 'follow', yaw: 0 },
+    light: { sun: '#FFD8B0', sunIntensity: 2.4, hemiSky: '#FFE0E6', hemiGround: '#C58A9C', hemiIntensity: 0.9, env: 0.5 },
+    statics, decor, movers, coins,
+    checkpoints: [{ pos: [0, 0, -43] }, { pos: [0, 0, -77.5] }],
     switches: [],
-    goal: [g.x, goalTop, g.z],
-    goalNeedsCoins: false,
-    meta: { goalTop },
+    goal: [0, 0, -104],
+    notes,
+    goalNeedsNotes: true,
+    route,
   }
 }

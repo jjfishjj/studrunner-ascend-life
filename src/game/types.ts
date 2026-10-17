@@ -36,12 +36,24 @@ export interface GateSpec {
   brick: BrickSpec
   /** 開啟時下沉的距離 */
   sink: number
-  mode: 'coins' | 'switch'
+  mode: 'coins' | 'notes' | 'switch'
   /** switch 模式：踩下按鈕後閘門開啟的秒數 */
   openSeconds?: number
 }
 
 export interface CheckpointSpec { pos: Vec3 }
+/** 場景中的「筆記磚」：撿到後解鎖對應的學習筆記分類。 */
+export interface NoteSpec { id: string; pos: Vec3 }
+/** 供自動化測試使用的建議路線：依序站上每個目標（mover 指移動平台 id）。 */
+export interface RouteStep { pos: Vec3; mover?: string }
+export interface LightSpec {
+  sun: string
+  sunIntensity: number
+  hemiSky: string
+  hemiGround: string
+  hemiIntensity: number
+  env: number
+}
 export interface SwitchSpec { pos: Vec3 }
 
 export interface CameraSpec {
@@ -55,6 +67,7 @@ export interface CameraSpec {
 
 export interface LevelDef {
   id: number
+  /** 第幾階（與關卡編號相同） */
   name: string
   subtitle: string
   hint: string
@@ -79,8 +92,12 @@ export interface LevelDef {
   gate?: GateSpec
   switches: SwitchSpec[]
   goal: Vec3
-  /** 通關是否需要集滿金幣 */
-  goalNeedsCoins: boolean
+  notes: NoteSpec[]
+  /** 終點是否需要集滿本關的筆記磚 */
+  goalNeedsNotes: boolean
+  /** 可選：自訂光照（夜空場景較暗） */
+  light?: LightSpec
+  route?: RouteStep[]
   /** 錨點位置：用於 UI/測試（例如迷宮路徑長度） */
-  meta?: Record<string, number>
+  meta?: { pathLength?: number; goalTop?: number; noteCells?: [number, number][]; noteOrigins?: number[] }
 }

@@ -10,6 +10,7 @@ import { readInput, resetInput } from '../game/input'
 import { sfx } from '../game/audio'
 import { useGame } from '../game/store'
 import type { Vec3 } from '../game/types'
+import { stageOf, NOTE_BY_ID } from '../game/notes'
 import { COIN_COLORS, DUST_COLORS, HURT_COLORS, PARTY_COLORS, BrickBurst, Particles } from './Particles'
 import { LevelScene } from './LevelScene'
 import { Player } from './Minifigure'
@@ -17,22 +18,24 @@ import { Player } from './Minifigure'
 const DT = 1 / 60
 
 /** 以程式生成的房間環境貼圖，讓塑膠有柔和反射（不需下載 HDR） */
-function Env() {
+function Env({ intensity = 0.55 }: { intensity?: number }) {
   const { gl, scene } = useThree()
   useEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl)
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
     scene.environment = env
-    scene.environmentIntensity = 0.55
+    scene.environmentIntensity = intensity
     return () => { scene.environment = null; env.dispose(); pmrem.dispose() }
-  }, [gl, scene])
+  }, [gl, scene, intensity])
   return null
 }
 
 const ATTRACT: Record<number, { focus: Vec3; dist: number; height: number; speed: number }> = {
   1: { focus: [0, 1, -12], dist: 20, height: 7, speed: 0.1 },
-  2: { focus: [0, 12, 0], dist: 32, height: 8, speed: 0.12 },
-  3: { focus: [0, 0, 0], dist: 36, height: 36, speed: 0.08 },
+  2: { focus: [0, 0, -50], dist: 46, height: 14, speed: 0.07 },
+  3: { focus: [0, 0, -60], dist: 52, height: 14, speed: 0.06 },
+  4: { focus: [0, 12, 0], dist: 32, height: 8, speed: 0.12 },
+  5: { focus: [0, 0, 0], dist: 36, height: 36, speed: 0.08 },
 }
 
 type Mode = 'play' | 'attract'
@@ -61,6 +64,13 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
         case 'coin':
           fx.burst(e.pos, COIN_COLORS, 16, 6.5); sfx.coin()
           break
+        case 'note': {
+          const def = NOTE_BY_ID[e.id]
+          const color = def ? stageOf(def.stage).color : '#F2CD37'
+          fx.burst(e.pos, [color, '#F2F3F2', '#F2CD37', color], 30, 7.5, 0.35); sfx.note()
+          st.collectNote(e.id)
+          break
+        }
         case 'hurt':
           fx.burst([e.pos[0], e.pos[1] + 1, e.pos[2]], HURT_COLORS, 22, 8.5); sfx.hurt(); st.hurtFlash()
           st.showToast('哎呀！被撞到了', 'bad')
@@ -88,10 +98,10 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
         case 'gate':
           if (e.open) sfx.gateOpen()
           else { sfx.gateClose(); if (world.level.gate?.mode === 'switch') st.showToast('閘門關閉了！回頭再踩一次按鈕', 'bad') }
-          if (e.open && world.level.gate?.mode === 'coins') st.showToast('終點閘門打開了！', 'good')
+          if (e.open && world.level.gate?.mode !== 'switch') st.showToast('終點閘門打開了！', 'good')
           break
         case 'goalLocked':
-          sfx.locked(); st.showToast(`還差 ${world.level.requiredCoins - world.coins} 枚金幣才能通過`, 'bad')
+          sfx.locked(); st.showToast(`還差 ${e.need} 張筆記磚才能通過終點`, 'bad')
           break
         case 'win':
           fx.burst([e.pos[0], e.pos[1] + 1.5, e.pos[2]], PARTY_COLORS, 80, 9, 0.4); sfx.win()
@@ -108,10 +118,10 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
     const left = world.timeLeft
     const time = left ?? world.time
     const gate = Math.ceil(world.gateTimer * 10) / 10
-    const sig = `${world.lives}|${world.coins}|${Math.floor(time * 10)}|${gate}|${world.invul > 0}`
+    const sig = `${world.lives}|${world.coins}|${world.notesGot}|${Math.floor(time * 10)}|${gate}|${world.invul > 0}`
     if (sig === lastSig.current) return
     lastSig.current = sig
-    st.setHud({ lives: world.lives, livesMax: world.livesMax, coins: world.coins, coinsTotal: world.level.coins.length, time, countdown: left !== null, gate, invul: world.invul > 0 })
+    st.setHud({ lives: world.lives, livesMax: world.livesMax, coins: world.coins, coinsTotal: world.level.coins.length, notes: world.notesGot, notesTotal: world.level.notes.length, time, countdown: left !== null, gate, invul: world.invul > 0 })
   }
 
   const checkEnd = () => {
@@ -123,7 +133,7 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
       useGame.getState().finish({
         levelId: lvl.id, won, reason: world.loseReason,
         time: world.loseReason === 'time' ? (lvl.timeLimit ?? world.time) : world.time,
-        coins: world.coins, coinsTotal: lvl.coins.length, lives: world.lives, livesMax: world.livesMax, parTime: lvl.parTime,
+        coins: world.coins, coinsTotal: lvl.coins.length, notes: world.notesGot, notesTotal: lvl.notes.length, lives: world.lives, livesMax: world.livesMax, parTime: lvl.parTime,
       })
     }, won ? 1600 : 1100)
     timers.current.push(t)
@@ -189,7 +199,7 @@ function World3D({ levelId, mode }: { levelId: number; mode: Mode }) {
   const alphaRef = useRef(1)
   const won = useGame(s => s.screen === 'victory')
   const sun = useMemo(() => {
-    const l = new THREE.DirectionalLight('#fff4e0', 2.6)
+    const l = new THREE.DirectionalLight(world.level.light?.sun ?? '#fff4e0', world.level.light?.sunIntensity ?? 2.6)
     l.castShadow = true
     l.shadow.mapSize.set(2048, 2048)
     const c = l.shadow.camera
@@ -197,15 +207,15 @@ function World3D({ levelId, mode }: { levelId: number; mode: Mode }) {
     l.shadow.bias = -0.0004
     l.shadow.normalBias = 0.05
     return l
-  }, [])
+  }, [world])
   useEffect(() => () => world.dispose(), [world])
   const lvl = world.level
   return (
     <>
       <color attach="background" args={[lvl.sky]} />
       <fog attach="fog" args={[lvl.fog[0], lvl.fog[1], lvl.fog[2]]} />
-      <Env />
-      <hemisphereLight args={['#ffffff', '#8fa3b8', 0.9]} />
+      <Env intensity={lvl.light?.env ?? 0.55} />
+      <hemisphereLight args={[lvl.light?.hemiSky ?? '#ffffff', lvl.light?.hemiGround ?? '#8fa3b8', lvl.light?.hemiIntensity ?? 0.9]} />
       <primitive object={sun} />
       <primitive object={sun.target} />
       <LevelScene world={world} getAlpha={() => alphaRef.current} />

@@ -24,6 +24,7 @@ export type LoseReason = 'lives' | 'time'
 
 export type GameEvent =
   | { type: 'coin'; index: number; pos: Vec3 }
+  | { type: 'note'; index: number; id: string; pos: Vec3 }
   | { type: 'hurt'; pos: Vec3 }
   | { type: 'fall'; pos: Vec3 }
   | { type: 'jump'; pos: Vec3 }
@@ -31,7 +32,7 @@ export type GameEvent =
   | { type: 'checkpoint'; index: number; pos: Vec3 }
   | { type: 'switch'; pos: Vec3 }
   | { type: 'gate'; open: boolean }
-  | { type: 'goalLocked' }
+  | { type: 'goalLocked'; need: number }
   | { type: 'respawn'; pos: Vec3 }
   | { type: 'win'; pos: Vec3 }
   | { type: 'lose'; reason: LoseReason }
@@ -76,6 +77,7 @@ export class GameWorld {
 
   gate?: { body: CANNON.Body; half: Vec3; amount: number; permanent: boolean; timer: number; baseY: number }
   collected: boolean[]
+  noteCollected: boolean[]
   checkpointActive: boolean[]
   switchPressed: boolean[]
 
@@ -116,6 +118,7 @@ export class GameWorld {
     this.livesMax = Math.max(1, level.lives + CONFIG.run.lives - DEFAULT_CONFIG.run.lives)
     this.lives = this.livesMax
     this.collected = level.coins.map(() => false)
+    this.noteCollected = level.notes.map(() => false)
     this.checkpointActive = level.checkpoints.map(() => false)
     this.switchPressed = level.switches.map(() => false)
     this.respawn = [level.spawn[0], level.spawn[1], level.spawn[2]]
@@ -172,6 +175,7 @@ export class GameWorld {
   /** 腳底座標（世界） */
   get feetY(): number { return this.player.position.y - PLAYER_R }
 
+  get notesGot(): number { return this.noteCollected.filter(Boolean).length }
   get gateAmount(): number { return this.gate?.amount ?? 0 }
   get gateTimer(): number { return this.gate && !this.gate.permanent ? this.gate.timer : 0 }
   get timeLeft(): number | null { return this.level.timeLimit === undefined ? null : Math.max(0, this.level.timeLimit - this.time) }
@@ -324,8 +328,9 @@ export class GameWorld {
     if (!g || !this.level.gate) return
     const spec = this.level.gate
     let open = false
-    if (spec.mode === 'coins') {
-      if (!g.permanent && this.coins >= this.level.requiredCoins) { g.permanent = true; this.pushEvent({ type: 'gate', open: true }) }
+    if (spec.mode === 'coins' || spec.mode === 'notes') {
+      const ready = spec.mode === 'coins' ? this.coins >= this.level.requiredCoins : this.notesGot >= this.level.notes.length
+      if (!g.permanent && ready) { g.permanent = true; this.pushEvent({ type: 'gate', open: true }) }
       open = g.permanent
     } else {
       if (g.timer > 0) {
@@ -352,6 +357,15 @@ export class GameWorld {
         this.collected[i] = true
         this.coins++
         this.pushEvent({ type: 'coin', index: i, pos: c })
+      }
+    })
+    lvl.notes.forEach((n, i) => {
+      if (this.noteCollected[i]) return
+      const d1 = Math.hypot(n.pos[0] - p.x, n.pos[1] - p.y, n.pos[2] - p.z)
+      const d2 = Math.hypot(n.pos[0] - p.x, n.pos[1] - (p.y + UPPER_Y), n.pos[2] - p.z)
+      if (Math.min(d1, d2) < 1.6) {
+        this.noteCollected[i] = true
+        this.pushEvent({ type: 'note', index: i, id: n.id, pos: n.pos })
       }
     })
     lvl.checkpoints.forEach((cp, i) => {
@@ -449,8 +463,8 @@ export class GameWorld {
     const p = this.player.position
     const fy = p.y - PLAYER_R - g[1]
     if (Math.abs(p.x - g[0]) < 2.3 && Math.abs(p.z - g[2]) < 2.3 && fy > -1 && fy < 4) {
-      if (this.level.goalNeedsCoins && this.coins < this.level.requiredCoins) {
-        if (this.goalWarn <= 0) { this.pushEvent({ type: 'goalLocked' }); this.goalWarn = 2 }
+      if (this.level.goalNeedsNotes && this.notesGot < this.level.notes.length) {
+        if (this.goalWarn <= 0) { this.pushEvent({ type: 'goalLocked', need: this.level.notes.length - this.notesGot }); this.goalWarn = 2 }
         return
       }
       this.status = 'won'

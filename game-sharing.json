@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
-  "title": "Stud Runner：樂高積木闖關",
-  "description": "操控樂高小人闖過三個積木世界：直線大道收集金幣、浮空積木高塔垂直跳躍、旋轉機關與限時閘門的終極迷宮。所有畫面皆由程式碼拼出的樂高積木構成。",
+  "title": "揚升人生：樂高積木五階闖關",
+  "description": "操控樂高小人闖過五個積木世界，一階一階向上揚升：收集金幣與 20 張學習筆記磚，跳過移動平台、升降浮橋、旋轉橫桿與限時迷宮。所有畫面皆由程式碼拼出的樂高積木構成。",
   "defaultCaptions": {
-    "x": "我正在玩《Stud Runner》：用樂高積木拼出的 3D 闖關遊戲，你能全破三關嗎？",
-    "facebook": "《Stud Runner：樂高積木闖關》— 操控樂高小人收集金幣、跳過縫隙、闖過限時迷宮！",
-    "reddit": "I built a 3D LEGO-style platformer entirely from procedurally generated studded bricks (React Three Fiber + cannon-es).",
-    "discord": "來挑戰《Stud Runner》三個關卡，看誰通關最快！"
+    "x": "我正在玩《揚升人生》：用樂高積木拼出的 3D 五階闖關，邊玩邊收集學習筆記！",
+    "facebook": "《揚升人生》— 操控樂高小人闖過五個階段，收集 20 張學習筆記磚。",
+    "reddit": "I built a 3D LEGO-style five-stage platformer from procedurally generated studded bricks (React Three Fiber + cannon-es).",
+    "discord": "來挑戰《揚升人生》五階闖關，看你能集齊幾張筆記磚！"
   },
   "assets": {
     "favicon": "assets/share/favicon.png",

@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { C } from '../game/colors'
 import type { GameWorld } from '../game/engine'
 import { motionPose } from '../game/motion'
+import { NOTE_BY_ID, stageOf } from '../game/notes'
 import { BRICK_H, type LevelDef } from '../game/types'
 import { BrickField } from './BrickField'
 import { LegoBrick } from './LegoBrick'
@@ -76,6 +77,38 @@ function Coins({ world }: { world: GameWorld }) {
   )
 }
 
+/** 筆記磚：發光的彩色大積木 + 白色書頁，頭上有一道彩色光柱，遠遠就看得到。 */
+function Notes({ world }: { world: GameWorld }) {
+  const refs = useRef<(THREE.Group | null)[]>([])
+  useFrame(state => {
+    const t = state.clock.elapsedTime
+    world.level.notes.forEach((n, i) => {
+      const g = refs.current[i]
+      if (!g) return
+      g.visible = !world.noteCollected[i]
+      g.position.set(n.pos[0], n.pos[1] + Math.sin(t * 2.2 + i * 1.7) * 0.18, n.pos[2])
+      g.rotation.y = t * 1.6 + i
+    })
+  })
+  return (
+    <>
+      {world.level.notes.map((n, i) => {
+        const def = NOTE_BY_ID[n.id]
+        const color = def ? stageOf(def.stage).color : C.yellow
+        return (
+          <group key={n.id} ref={el => { refs.current[i] = el }} position={n.pos}>
+            <LegoBrick size={[1.5, 0.7, 1.1]} color={color} emissive={0.5} position={[0, -0.35, 0]} />
+            <LegoBrick size={[1.15, 0.14, 0.8]} color={C.white} studs={false} emissive={0.6} position={[0, 0.5, 0]} />
+            <mesh position={[0, 3.2, 0]}>
+              <cylinderGeometry args={[0.55, 0.55, 6, 14, 1, true]} />
+              <meshBasicMaterial color={color} transparent opacity={0.22} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
+            </mesh>
+          </group>
+        )
+      })}
+    </>
+  )
+}
 function Checkpoints({ world }: { world: GameWorld }) {
   const flags = useRef<(THREE.Mesh | null)[]>([])
   useFrame(state => {
@@ -128,11 +161,17 @@ function Switches({ world }: { world: GameWorld }) {
 function Goal({ world }: { world: GameWorld }) {
   const cup = useRef<THREE.Group>(null)
   const beam = useRef<THREE.Mesh>(null)
+  const beamMat = useRef<THREE.MeshBasicMaterial>(null)
   const g = world.level.goal
   useFrame(state => {
     const t = state.clock.elapsedTime
     if (cup.current) { cup.current.rotation.y = t * 1.2; cup.current.position.y = 0.6 + Math.sin(t * 2) * 0.12 }
     if (beam.current) beam.current.rotation.y = -t * 0.8
+    if (beamMat.current) {
+      const locked = world.level.goalNeedsNotes && world.notesGot < world.level.notes.length
+      beamMat.current.color.set(locked ? C.red : C.yellow)
+      beamMat.current.opacity = locked ? 0.1 : 0.2
+    }
   })
   return (
     <group position={g}>
@@ -148,7 +187,7 @@ function Goal({ world }: { world: GameWorld }) {
       ))}
       <mesh ref={beam} position={[0, 20, 0]}>
         <cylinderGeometry args={[1.6, 1.6, 40, 20, 1, true]} />
-        <meshBasicMaterial color={C.yellow} transparent opacity={0.16} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
+        <meshBasicMaterial ref={beamMat} color={C.yellow} transparent opacity={0.16} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
       </mesh>
     </group>
   )
@@ -163,6 +202,7 @@ export function LevelScene({ world, getAlpha }: { world: GameWorld; getAlpha: ()
       <Movers world={world} getAlpha={getAlpha} />
       <Gate world={world} />
       <Coins world={world} />
+      <Notes world={world} />
       <Checkpoints world={world} />
       <Switches world={world} />
       <Goal world={world} />

@@ -71,11 +71,13 @@ canvas { display: block; touch-action: none; }
 @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes introOut { 0% { opacity: 0; transform: translateY(-14px); } 10% { opacity: 1; transform: none; } 78% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
 @keyframes toastOut { 0% { opacity: 0; transform: translateY(14px) scale(.9); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+@keyframes noteCard { 0% { opacity: 0; transform: translate(-50%, 24px) scale(.92); } 8% { opacity: 1; transform: translate(-50%, 0) scale(1); } 88% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -10px); } }
 @keyframes flash { 0% { opacity: .85; } 100% { opacity: 0; } }
 @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes pulseRed { 0%, 100% { filter: none; } 50% { filter: brightness(1.35) saturate(1.2); } }
 .intro-anim { animation: introOut 3.6s ease forwards; }
 .toast-anim { animation: toastOut 2.4s ease forwards; }
+.notecard-anim { animation: noteCard 7s ease forwards; }
 .flash-anim { animation: flash .55s ease-out forwards; }
 .timer-danger { animation: pulseRed .6s ease-in-out infinite; }
 .floaty { animation: floaty 3.2s ease-in-out infinite; }

@@ -15,11 +15,15 @@ describe('rules', () => {
     expect(computeStars({ ...base, livesLeft: 3, time: 30 })).toBe(2)
   })
   it('parseSave 容錯', () => {
-    expect(parseSave(null)).toEqual({ best: {}, muted: false })
-    expect(parseSave('not json')).toEqual({ best: {}, muted: false })
+    expect(parseSave(null)).toEqual({ best: {}, muted: false, notes: [] })
+    expect(parseSave('not json')).toEqual({ best: {}, muted: false, notes: [] })
     const s = parseSave(JSON.stringify({ muted: true, best: { 1: { time: 12, stars: 3, coins: 10 }, 2: { bad: 1 } } }))
     expect(s.muted).toBe(true)
     expect(Object.keys(s.best)).toEqual(['1'])
+  })
+  it('parseSave 只保留合法且不重複的筆記編號', () => {
+    const s = parseSave(JSON.stringify({ notes: ['03', '01', '03', '20', '21', '00', 'x', 5] }))
+    expect(s.notes).toEqual(['01', '03', '20'])
   })
   it('mergeBest 取較佳成績', () => {
     const a = { time: 40, stars: 2, coins: 10 }

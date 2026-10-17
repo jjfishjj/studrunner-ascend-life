@@ -46,3 +46,24 @@ export function Key({ children, wide = false }: { children: ReactNode; wide?: bo
     <span className={`inline-flex h-8 items-center justify-center rounded-md bg-white px-2 text-sm font-black text-[#1B2A34] shadow-[0_3px_0_rgba(0,0,0,.45)] ${wide ? 'min-w-20' : 'min-w-8'}`}>{children}</span>
   )
 }
+
+/** 筆記進度小圓點（凸點造型）：已收集的亮起，未收集的暗淡。 */
+export function NotePips({ got, total = 4, color, size = 14 }: { got: number; total?: number; color: string; size?: number }) {
+  return (
+    <div className="flex gap-1" aria-label={`筆記 ${got} / ${total}`}>
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className="inline-block rounded-full border-2 border-black/40" style={{ width: size, height: size, background: i < got ? color : 'rgba(0,0,0,.25)', boxShadow: i < got ? 'inset 0 2px 0 rgba(255,255,255,.45)' : 'none' }} />
+      ))}
+    </div>
+  )
+}
+
+/** 筆記圖示：一本小書（用於 HUD 與選單）。 */
+export function NoteIcon({ size = 28, color = '#F2F3F2' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      <rect x="3" y="3" width="18" height="18" rx="3" fill={color} stroke="#1B2A34" strokeWidth="1.8" />
+      <path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h5.5" stroke="#1B2A34" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}

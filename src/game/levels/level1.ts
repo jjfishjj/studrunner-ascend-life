@@ -1,11 +1,12 @@
-import { BRICK_H, type BrickSpec, type LevelDef, type MoverSpec, type Vec3 } from '../types'
+import { BRICK_H, type BrickSpec, type LevelDef, type MoverSpec, type NoteSpec, type Vec3 } from '../types'
 import { C, rng } from '../colors'
 import { cloud, tower, tree } from './scenery'
 
 /**
- * 關卡 1：新手教學－樂高大道
+ * 一階「自我與原生家庭」－原點大道（新手教學）
  * 一條沿 -Z 延伸的直線大道（x ∈ [-6, 6]，路面頂部 y = 0），
- * 中段有三道左右滑動的樂高牆，之後是一個缺口與可跳越的矮牆，終點閘門需要 10 枚金幣才會打開。
+ * 中段有三道左右滑動的樂高牆，之後是一個缺口與可跳越的矮牆。
+ * 路上散落 10 枚金幣（星等用）與 4 張筆記磚（01～04）；集齊筆記磚終點閘門才會打開。
  */
 export function buildLevel1(): LevelDef {
   const statics: BrickSpec[] = []
@@ -68,14 +69,20 @@ export function buildLevel1(): LevelDef {
     [0, 2.6, -52], [-3, 2.5, -63], [3, 2.5, -70], [0, 2.5, -78], [0, 1.4, -83],
   ]
 
+  const notes: NoteSpec[] = [
+    { id: '01', pos: [3, 1.9, -9] },
+    { id: '02', pos: [0, 1.9, -34] },
+    { id: '03', pos: [3, 1.9, -59] },
+    { id: '04', pos: [0, 1.9, -74] },
+  ]
   return {
     id: 1,
-    name: '樂高大道',
-    subtitle: '新手教學',
-    hint: '收集 10 枚金幣打開終點閘門，留意左右滑動的樂高牆！',
+    name: '原點大道',
+    subtitle: '自我與原生家庭',
+    hint: '集齊 4 張筆記磚才能打開終點閘門；金幣越多，星星越多。',
     lives: 3,
     parTime: 45,
-    requiredCoins: 10,
+    requiredCoins: 0,
     sky: '#7CCBF2',
     fog: ['#BDE6F7', 40, 130],
     spawn: [0, 0.1, 2],
@@ -83,9 +90,10 @@ export function buildLevel1(): LevelDef {
     camera: { distance: 9, height: 4.6, mode: 'follow', yaw: 0 },
     statics, decor, movers, coins,
     checkpoints: [{ pos: [0, 0, -57] }],
-    gate: { brick: { pos: [0, 0, -86], size: [12, BRICK_H * 3, 1], color: C.red }, sink: 3.9, mode: 'coins' },
+    gate: { brick: { pos: [0, 0, -86], size: [12, BRICK_H * 3, 1], color: C.red }, sink: 3.9, mode: 'notes' },
     switches: [],
     goal: [0, 0, -91],
-    goalNeedsCoins: true,
+    notes,
+    goalNeedsNotes: true,
   }
 }

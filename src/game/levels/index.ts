@@ -1,10 +1,13 @@
 import type { LevelDef } from '../types'
+import { STAGES } from '../notes'
 import { buildLevel1 } from './level1'
 import { buildLevel2 } from './level2'
 import { buildLevel3 } from './level3'
+import { buildLevel4 } from './level4'
+import { buildLevel5 } from './level5'
 
-export const LEVEL_COUNT = 3
-export const LEVEL_BUILDERS: Array<() => LevelDef> = [buildLevel1, buildLevel2, buildLevel3]
+export const LEVEL_BUILDERS: Array<() => LevelDef> = [buildLevel1, buildLevel2, buildLevel3, buildLevel4, buildLevel5]
+export const LEVEL_COUNT = LEVEL_BUILDERS.length
 
 export function buildLevel(id: number): LevelDef {
   const b = LEVEL_BUILDERS[id - 1]
@@ -12,9 +15,23 @@ export function buildLevel(id: number): LevelDef {
   return b()
 }
 
-/** 選單用的關卡摘要（不需要建立完整地圖） */
-export const LEVEL_INFO = [
-  { id: 1, name: '樂高大道', subtitle: '新手教學', blurb: '直線大道，收集 10 枚金幣，閃避左右滑動的樂高牆。', color: '#237841', icon: '10 金幣' },
-  { id: 2, name: '積木高塔', subtitle: '垂直跳躍', blurb: '踩著浮空積木螺旋向上，跨過縫隙，登上塔頂。', color: '#0055BF', icon: '垂直攀登' },
-  { id: 3, name: '樂高迷宮', subtitle: '終極挑戰', blurb: '旋轉橫桿、陷阱塊、限時閘門與倒數計時。', color: '#C91A09', icon: '限時 100 秒' },
-] as const
+/** 選單用的關卡摘要（不需要建立完整地圖）；名稱與主題來自五階資料。 */
+export const LEVEL_INFO = STAGES.map(st => ({
+  id: st.stage,
+  stage: st.stage,
+  label: st.label,
+  name: st.levelName,
+  subtitle: st.title,
+  theme: st.theme,
+  blurb: st.levelBlurb,
+  color: st.color,
+  ink: st.ink,
+  tag: ['新手教學', '搭橋闖關', '升降浮橋', '垂直攀登', '限時挑戰'][st.stage - 1],
+  hint: [
+    '集齊 4 張筆記磚才能打開終點閘門；金幣越多，星星越多。',
+    '搭上滑動平台、等紅色陷阱縮回去再通過、跳過旋轉橫桿，一路收集 4 張筆記磚。',
+    '依序走過事業、財富、感情、家庭、身體五座島；浮橋會升降、滑動、旋轉與伸縮，抓準時機再跳。',
+    '沿著螺旋跳上浮空積木，穿過星空向上揚升；集齊 4 張筆記磚，塔頂的終點才會亮起。',
+    '到死路撿齊 4 張筆記磚，跳過旋轉橫桿、躲開紅色陷阱，踩下藍色按鈕後 12 秒內衝過閘門！',
+  ][st.stage - 1],
+}))

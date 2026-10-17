@@ -5,6 +5,7 @@ import { useGame } from './game/store'
 import { Hud } from './ui/Hud'
 import { LevelSelect } from './ui/LevelSelect'
 import { MainMenu } from './ui/MainMenu'
+import { Notebook } from './ui/Notebook'
 import { GameOver, PauseMenu, Victory } from './ui/Overlays'
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
         else if (s.screen === 'victory') s.next()
       } else if (e.code === 'Escape') {
         if (s.screen === 'select') s.goMenu()
+        else if (s.screen === 'notes') (s.notesFrom === 'select' ? s.goSelect : s.goMenu)()
       }
     }
     const onHide = () => { if (document.hidden) useGame.getState().pause() }
@@ -41,6 +43,7 @@ export default function App() {
       <GameView />
       {screen === 'menu' && <MainMenu />}
       {screen === 'select' && <LevelSelect />}
+      {screen === 'notes' && <Notebook />}
       {(screen === 'playing' || screen === 'gameover' || screen === 'victory') && <Hud />}
       {screen === 'playing' && paused && <PauseMenu />}
       {screen === 'gameover' && <GameOver />}

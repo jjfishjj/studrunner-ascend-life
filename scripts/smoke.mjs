@@ -44,11 +44,11 @@ try {
   await page.waitForSelector(sel('start'), { timeout: 60_000 })
   await page.screenshot({ path: `${out}/smoke-menu.png` })
   await page.click(sel('select'))
-  await page.waitForSelector(sel('level-3'))
+  await page.waitForSelector(sel('level-5'))
   await page.screenshot({ path: `${out}/smoke-select.png` })
 
-  for (const id of [1, 2, 3]) {
-    if (id > 1) { await page.keyboard.press('Escape'); await page.click('text=關卡選擇') }
+  for (const id of [1, 2, 3, 4, 5]) {
+    if (id > 1) { await page.keyboard.press('Escape'); await page.click('text=階段選擇') }
     await page.click(sel(`level-${id}`))
     await page.waitForSelector(sel('hud-level'))
     await page.waitForTimeout(2500)
@@ -69,18 +69,28 @@ try {
   await page.waitForSelector(sel('gameover-title'), { timeout: 60_000 })
   await page.screenshot({ path: `${out}/smoke-gameover.png` })
 
-  // 通關：傳送到終點
+  // 筆記磚：傳送到第一張筆記磚上，應立即計數並跳出筆記卡
   await page.click(sel('retry'))
   await page.waitForSelector(sel('hud-level'))
   await page.waitForTimeout(1500)
-  await page.evaluate(`(() => { const w = ${world}; const g = w.level.goal; w.coins = 99; w.player.position.set(g[0], g[1] + 0.6, g[2]); w.player.velocity.set(0, 0, 0); })()`)
+  await page.evaluate(`(() => { const w = ${world}; const n = w.level.notes[0].pos; w.player.position.set(n[0], 0.5, n[2]); w.player.velocity.set(0, 0, 0); })()`)
+  await page.waitForSelector(sel('note-card'), { timeout: 20_000 })
+  const got = await page.evaluate(`${world}.notesGot`)
+  if (got !== 1) throw new Error(`expected 1 note, got ${got}`)
+  // 通關：傳送到終點
+  await page.evaluate(`(() => { const w = ${world}; const g = w.level.goal; w.noteCollected.fill(true); w.notesGot = w.level.notes.length; w.player.position.set(g[0], g[1] + 0.6, g[2]); w.player.velocity.set(0, 0, 0); })()`)
   await page.waitForSelector(sel('victory-title'), { timeout: 60_000 })
   await page.screenshot({ path: `${out}/smoke-victory.png` })
 
+  // 學習筆記本：從結算畫面進入，應顯示已收集的筆記
+  await page.click(sel('open-notes'))
+  await page.waitForSelector(sel('notebook'))
+  await page.waitForSelector(sel('note-detail'))
+  await page.screenshot({ path: `${out}/smoke-notebook.png` })
   if (errors.length) throw new Error(`console errors:\n${errors.join('\n')}`)
   await browser.close()
   cleanup()
-  console.log('smoke: OK — menus, 3 levels, game over and victory all reached with no console errors')
+  console.log('smoke: OK — menus, 5 levels, note pickup, game over, victory and notebook all reached with no console errors')
 } catch (e) {
   await fail(e instanceof Error ? e.message : String(e))
 }

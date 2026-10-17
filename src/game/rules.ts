@@ -29,21 +29,24 @@ export interface BestRecord { time: number; stars: number; coins: number }
 export interface SaveData {
   best: Record<string, BestRecord>
   muted: boolean
+  /** 已收集的筆記編號（'01'～'20'） */
+  notes: string[]
 }
 
-export const EMPTY_SAVE: SaveData = { best: {}, muted: false }
+export const EMPTY_SAVE: SaveData = { best: {}, muted: false, notes: [] }
 
 export function parseSave(raw: string | null): SaveData {
-  if (!raw) return { ...EMPTY_SAVE, best: {} }
+  if (!raw) return { ...EMPTY_SAVE, best: {}, notes: [] }
   try {
     const data = JSON.parse(raw) as Partial<SaveData>
     const best: Record<string, BestRecord> = {}
     for (const [k, v] of Object.entries(data.best ?? {})) {
       if (v && Number.isFinite(v.time) && Number.isFinite(v.stars) && Number.isFinite(v.coins)) best[k] = { time: v.time, stars: v.stars, coins: v.coins }
     }
-    return { best, muted: data.muted === true }
+    const notes = Array.isArray(data.notes) ? [...new Set(data.notes.filter((n): n is string => typeof n === 'string' && /^(0[1-9]|1\d|20)$/.test(n)))].sort() : []
+    return { best, muted: data.muted === true, notes }
   } catch {
-    return { ...EMPTY_SAVE, best: {} }
+    return { ...EMPTY_SAVE, best: {}, notes: [] }
   }
 }
 
