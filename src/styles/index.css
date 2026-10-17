@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Heiti TC", "Noto Sans CJK TC", system-ui, sans-serif;
+  --color-lred: #C91A09;
+  --color-lyellow: #F2CD37;
+  --color-lblue: #0055BF;
+  --color-lgreen: #237841;
+  --color-lwhite: #F2F3F2;
+  --color-lblack: #1B2A34;
+  --color-plate: #0B2A5B;
+  --animate-pop: pop 0.45s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+html, body, #root { height: 100%; margin: 0; overflow: hidden; background: var(--color-plate); font-family: var(--font-sans); user-select: none; -webkit-user-select: none; }
+canvas { display: block; touch-action: none; }
+
+/* ---------- 積木元件：圓角塊 + 頂部圓柱凸點 ---------- */
+.brick {
+  --c: var(--color-lred);
+  position: relative;
+  background: var(--c);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 4px 0 rgba(255, 255, 255, .30),
+    inset 0 -7px 0 rgba(0, 0, 0, .22),
+    0 6px 0 rgba(0, 0, 0, .38),
+    0 14px 22px rgba(0, 0, 0, .25);
+}
+.brick-studs { margin-top: 10px; }
+.brick-studs::before {
+  content: "";
+  position: absolute;
+  left: 12px; right: 12px; top: -9px; height: 10px;
+  background: radial-gradient(ellipse 9px 8px at 50% 100%, var(--c) 0 96%, transparent 100%) 0 0 / 28px 10px repeat-x;
+  filter: brightness(1.1);
+}
+.lego-text { color: #fff; font-weight: 900; letter-spacing: .03em; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+.ink-text { color: var(--color-lblack); font-weight: 900; letter-spacing: .03em; }
+
+.btn {
+  --c: var(--color-lred);
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .8rem 1.6rem;
+  border: 0; cursor: pointer;
+  border-radius: 12px;
+  background: var(--c);
+  color: #fff; font-weight: 900; font-size: 1.15rem; letter-spacing: .06em;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .3);
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, .3), inset 0 -6px 0 rgba(0, 0, 0, .22), 0 7px 0 rgba(0, 0, 0, .4);
+  transition: transform .08s ease, box-shadow .08s ease, filter .15s;
+  margin-top: 10px;
+}
+.btn::before {
+  content: ""; position: absolute; left: 14px; right: 14px; top: -9px; height: 10px;
+  background: radial-gradient(ellipse 9px 8px at 50% 100%, var(--c) 0 96%, transparent 100%) 0 0 / 28px 10px repeat-x;
+  filter: brightness(1.1);
+}
+.btn:hover { transform: translateY(-2px); filter: brightness(1.08); }
+.btn:active { transform: translateY(5px); box-shadow: inset 0 4px 0 rgba(255, 255, 255, .3), inset 0 -4px 0 rgba(0, 0, 0, .22), 0 2px 0 rgba(0, 0, 0, .4); }
+.btn:focus-visible { outline: 4px solid #fff; outline-offset: 4px; }
+.btn-yellow { --c: var(--color-lyellow); color: var(--color-lblack); text-shadow: 0 2px 0 rgba(255, 255, 255, .35); }
+.btn-blue { --c: var(--color-lblue); }
+.btn-green { --c: var(--color-lgreen); }
+.btn-white { --c: var(--color-lwhite); color: var(--color-lblack); text-shadow: none; }
+.btn-lg { font-size: 1.5rem; padding: 1rem 2.4rem; }
+
+.panel-backdrop { background: radial-gradient(ellipse at 30% 40%, rgba(11, 42, 91, .55), rgba(5, 15, 40, .86)); backdrop-filter: blur(3px); }
+
+@keyframes pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes introOut { 0% { opacity: 0; transform: translateY(-14px); } 10% { opacity: 1; transform: none; } 78% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
+@keyframes toastOut { 0% { opacity: 0; transform: translateY(14px) scale(.9); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+@keyframes flash { 0% { opacity: .85; } 100% { opacity: 0; } }
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes pulseRed { 0%, 100% { filter: none; } 50% { filter: brightness(1.35) saturate(1.2); } }
+.intro-anim { animation: introOut 3.6s ease forwards; }
+.toast-anim { animation: toastOut 2.4s ease forwards; }
+.flash-anim { animation: flash .55s ease-out forwards; }
+.timer-danger { animation: pulseRed .6s ease-in-out infinite; }
+.floaty { animation: floaty 3.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .floaty, .timer-danger { animation: none; }
+}

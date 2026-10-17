@@ -1,66 +1,53 @@
-# game-3d starter (three.js + Rapier)
+# Stud Runner：樂高積木闖關
 
-A complete, small 3D game — **Sky Cores**: run, jump and dash across floating islands to collect
-every energy core before the clock runs out, avoiding patrol drones. It exists to be *changed*:
-the engine layer is fixed scaffolding, the game layer is the part you rewrite.
+用 React Three Fiber 打造的 3D 樂高風格第三人稱平台闖關遊戲。**所有可見物體（角色、地形、障礙、金幣、樹木、雲朵）都是程式碼動態生成的帶凸點（Studs）積木**，沒有任何外部模型或貼圖。
+
+## 技術棧
+
+| 用途 | 套件 |
+| --- | --- |
+| 前端 | React 19 + Vite + TypeScript |
+| 3D | three.js + `@react-three/fiber` + `@react-three/drei` |
+| 物理 | `cannon-es`（重力、盒/球碰撞、射線接地偵測、運動學平台） |
+| UI | Tailwind CSS v4 + zustand |
+| 音效 | Web Audio 即時合成（無音檔） |
+
+## 指令
 
 ```bash
 pnpm install
-pnpm dev      # http://localhost:5173
-pnpm build    # typecheck + production build + JS/font budgets + total-size report
-pnpm test     # unit tests (rules, save, i18n, level)
-pnpm smoke    # after build: headless browser playthrough + screenshots in shots/
+pnpm dev        # 開發伺服器
+pnpm build      # 型別檢查 + 建置 + 體積預算
+pnpm test       # 單元測試（規則、物理、三關機器人通關、繪製預算）
+pnpm smoke      # 建置後的瀏覽器端到端測試（截圖輸出到 shots/）
 ```
 
-## Layout
+網址加上 `?debug` 會在 `window.__studrunner` 暴露 `world`、`store`、`gl`，供自動化測試使用。
 
-| Path | Role | Change it? |
-| --- | --- | --- |
-| `src/engine/loop.ts` | Fixed 60 Hz simulation + interpolated rendering | Rarely |
-| `src/engine/input.ts` | Keyboard/mouse, gamepad, touch → one action state | Add actions here |
-| `src/engine/physics.ts` | Rapier world, collider helpers, render interpolation | Rarely |
-| `src/engine/renderer.ts` | WebGL renderer, quality presets, bloom | Rarely |
-| `src/engine/audio.ts` | Music/SFX buses, synthesized SFX, `load()` for files | Add sounds |
-| `src/engine/save.ts` | Versioned localStorage save + leaderboard | Add fields + parsing |
-| `src/engine/i18n.ts` | en / zh-CN, browser detection, saved choice wins | Rarely |
-| `src/engine/assets.ts` | Cached GLTF/texture loading with progress | Use it for models |
-| `src/game/config.ts` | Source defaults and active gameplay configuration | Yes |
-| `src/game/tuning.ts` | Tweak catalog, atomic validation and activation boundaries | Yes |
-| `src/game/rules.ts` | Pure score/lives/clock/win rules (unit tested) | Yes |
-| `src/game/world.ts` | Level layout, sky, lights, islands, stones, lifts | Yes |
-| `src/game/player.ts` | Character controller + game feel + procedural model | Yes |
-| `src/game/*.ts` | Camera, cores, drones, particles, scene orchestration | Yes |
-| `src/ui/`, `src/styles/main.css` | HTML/CSS title, HUD, pause, settings, results | Yes |
-| `src/i18n/*.json` | All player-facing text (both files, same keys) | Yes |
+## 操作
 
-## Rules for changes
+`WASD` / 方向鍵移動（相對攝影機）、`Space` 跳躍（按住跳更高）、`Esc` 暫停、`R` 重來、`M` 靜音。
 
-- **Simulation in `step()`, visuals in `render()`/`animate()`.** Gameplay state only changes in
-  fixed steps; read presses there with `input.consume(action)`, never `pressed()`.
-- **Rules stay pure.** Scoring, win/lose and progression go in `rules.ts` with tests; scene code
-  reports events and reads state.
-- **Every visible string is an i18n key** in both `en.json` and `zh-CN.json` (a test enforces
-  matching keys and placeholders). English and Chinese use the bundled Manus CC0 fonts in `public/fonts/`;
-  if you add new Chinese text, check it renders (missing glyphs fall back to system fonts).
-- **UI is HTML/CSS**, not canvas. Keep the game look: display font, outlined text, hard offset
-  shadows, skewed buttons, notched panels. Menus must stay keyboard/gamepad navigable
-  (`data-nav` on focusable controls).
-- **Colliders come from the helpers** in `physics.ts` with the same sizes as the meshes.
-- Keep `npm run build` within the JS/font budgets (`scripts/check-size.mjs`) and `npm run smoke` green.
-  Total game asset size is reported without a hard limit.
+## 關卡
 
-## Controls
+1. **樂高大道（新手教學）**：直線大道，收集 10 枚金幣打開終點閘門，閃避三道左右滑動的樂高牆，跳過缺口與矮牆。
+2. **積木高塔（垂直跳躍）**：方形螺旋向上的浮空積木階梯，含左右移動的橘色平台與檢查點，登頂拿獎盃。
+3. **樂高迷宮（終極挑戰）**：7×7 種子迷宮，包含旋轉橫桿、週期升降的紅色陷阱塊、限時 12 秒的藍色按鈕閘門，以及 100 秒總倒數。
 
-Keyboard/mouse: WASD move, mouse look (click to capture), Space jump (hold = higher), Shift
-sprint, F or left click dash, Esc pause. Gamepad: left stick, right stick, A jump, X/RB dash,
-LB sprint, Start pause. Touch: left-side stick, right-side drag to look, JUMP / DASH buttons.
+## 程式結構
 
-## Credits
-
-Fonts: ManusCC0 (regular, medium, bold) and ManusCC0 Sans CJK SC — CC0 1.0.
-The bundled Chinese font preserves its 6,547-codepoint repertoire; no font download is required.
-See `public/fonts/ManusCC0-LICENSE.txt`.
-Libraries: three.js (MIT), Rapier (Apache-2.0).
+| 路徑 | 說明 |
+| --- | --- |
+| `src/components/LegoBrick.tsx` | 單塊積木：BoxGeometry 主體 + InstancedMesh 圓柱凸點 |
+| `src/components/BrickField.tsx` | 大量靜態積木批次繪製（2 個 InstancedMesh） |
+| `src/components/Minifigure.tsx` | 樂高小人與跑/跳/受傷/慶祝動畫 |
+| `src/components/Particles.tsx` | 磚塊爆裂粒子（Brick Burst Particles） |
+| `src/components/LevelScene.tsx` | 機關、閘門、金幣、檢查點、按鈕、終點 |
+| `src/components/GameView.tsx` | Canvas、固定 60Hz 模擬、攝影機、事件→特效/音效/UI |
+| `src/game/engine.ts` | 與渲染無關的物理與規則核心（可在 Node 測試） |
+| `src/game/levels/*.ts` | 三個關卡的資料與生成邏輯（迷宮為 DFS + BFS） |
+| `src/game/tuning.ts` / `config.ts` | Tweak 參數管理器（保留開發期調校橋接） |
+| `src/ui/*` | 開始選單、關卡選擇、HUD、暫停、遊戲結束、通關結算 |
 
 ## Preview Tweak
 

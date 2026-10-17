@@ -1,99 +1,55 @@
-import { CONFIG } from './config'
+/** 純規則：不依賴 React / Three，方便單元測試。 */
 
-/**
- * Pure run rules: score, combo, lives, clock, win/lose. No three.js, no Rapier, no DOM — the
- * scene reports events and reads the resulting state, and unit tests cover every rule here.
- */
-export type RunPhase = 'playing' | 'won' | 'lost'
-export type LoseReason = 'time' | 'lives'
-
-export type RunState = {
-  unranked: boolean
-  phase: RunPhase
-  loseReason?: LoseReason
-  score: number
-  lives: number
-  timeLeft: number
-  elapsed: number
-  collected: number
-  total: number
-  combo: number
-  comboTimer: number
-  invulnerable: number
-  /** End-of-run bonuses (already included in `score`), kept separate for the results screen. */
-  timeBonus: number
-  lifeBonus: number
+export function formatTime(seconds: number): string {
+  const s = Math.max(0, seconds)
+  const m = Math.floor(s / 60)
+  const r = s - m * 60
+  return `${String(m).padStart(2, '0')}:${r.toFixed(1).padStart(4, '0')}`
 }
 
-export function createRun(totalCores: number, rules = CONFIG): RunState {
-  return {
-    unranked: false,
-    phase: 'playing',
-    score: 0,
-    lives: rules.run.lives,
-    timeLeft: rules.run.seconds,
-    elapsed: 0,
-    collected: 0,
-    total: totalCores,
-    combo: 0,
-    comboTimer: 0,
-    invulnerable: 0,
-    timeBonus: 0,
-    lifeBonus: 0,
+export interface StarInput {
+  coins: number
+  coinsTotal: number
+  livesLeft: number
+  livesMax: number
+  time: number
+  parTime: number
+}
+
+/** 星等：1 通關、2 蒐集全部金幣或零失誤、3 兩者皆達成且在標準時間內。 */
+export function computeStars(i: StarInput): 1 | 2 | 3 {
+  const allCoins = i.coins >= i.coinsTotal
+  const perfect = i.livesLeft >= i.livesMax
+  const fast = i.time <= i.parTime
+  const score = 1 + (allCoins ? 1 : 0) + (perfect && fast ? 1 : 0)
+  return Math.min(3, score) as 1 | 2 | 3
+}
+
+export interface BestRecord { time: number; stars: number; coins: number }
+export interface SaveData {
+  best: Record<string, BestRecord>
+  muted: boolean
+}
+
+export const EMPTY_SAVE: SaveData = { best: {}, muted: false }
+
+export function parseSave(raw: string | null): SaveData {
+  if (!raw) return { ...EMPTY_SAVE, best: {} }
+  try {
+    const data = JSON.parse(raw) as Partial<SaveData>
+    const best: Record<string, BestRecord> = {}
+    for (const [k, v] of Object.entries(data.best ?? {})) {
+      if (v && Number.isFinite(v.time) && Number.isFinite(v.stars) && Number.isFinite(v.coins)) best[k] = { time: v.time, stars: v.stars, coins: v.coins }
+    }
+    return { best, muted: data.muted === true }
+  } catch {
+    return { ...EMPTY_SAVE, best: {} }
   }
 }
 
-export function tick(s: RunState, dt: number): RunState {
-  if (s.phase !== 'playing') return s
-  const timeLeft = Math.max(0, s.timeLeft - dt)
-  const comboTimer = Math.max(0, s.comboTimer - dt)
-  const next: RunState = {
-    ...s,
-    timeLeft,
-    elapsed: s.elapsed + dt,
-    comboTimer,
-    combo: comboTimer > 0 ? s.combo : 0,
-    invulnerable: Math.max(0, s.invulnerable - dt),
-  }
-  if (timeLeft <= 0) return { ...next, phase: 'lost', loseReason: 'time' }
-  return next
-}
-
-/** A core was picked up. Returns the new state and the points it was worth (for popups). */
-export function collect(s: RunState, rules = CONFIG): { state: RunState; points: number } {
-  if (s.phase !== 'playing') return { state: s, points: 0 }
-  const combo = Math.min(rules.score.comboMax, s.comboTimer > 0 ? s.combo + 1 : 1)
-  const points = rules.score.core * combo
-  const collected = s.collected + 1
-  let next: RunState = { ...s, score: s.score + points, combo, comboTimer: rules.score.comboWindow, collected }
-  if (collected >= s.total) {
-    const timeBonus = Math.ceil(next.timeLeft) * rules.score.timeBonus
-    const lifeBonus = next.lives * rules.score.lifeBonus
-    next = { ...next, phase: 'won', timeBonus, lifeBonus, score: next.score + timeBonus + lifeBonus }
-  }
-  return { state: next, points }
-}
-
-/** The player was hit or fell. Ignored while invulnerable unless `fell` (falling always costs a life). */
-export function damage(s: RunState, fell = false, rules = CONFIG): { state: RunState; hurt: boolean } {
-  if (s.phase !== 'playing') return { state: s, hurt: false }
-  if (!fell && s.invulnerable > 0) return { state: s, hurt: false }
-  const lives = s.lives - 1
-  const next: RunState = { ...s, lives, combo: 0, comboTimer: 0, invulnerable: rules.run.invulnerable }
-  if (lives <= 0) return { state: { ...next, lives: 0, phase: 'lost', loseReason: 'lives' }, hurt: true }
-  return { state: next, hurt: true }
-}
-
-/** Star rating on the results screen: 1 for finishing, +1 at half time left, +1 with no hits. */
-export function stars(s: RunState, rules = CONFIG): number {
-  if (s.phase !== 'won') return 0
-  let n = 1
-  if (s.timeLeft >= rules.run.seconds / 2) n += 1
-  if (s.lives === rules.run.lives) n += 1
-  return n
-}
-
-export function formatClock(seconds: number): string {
-  const whole = Math.max(0, Math.ceil(seconds))
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
+/** 合併新成績：星等較高或同星時間較短者勝出。 */
+export function mergeBest(prev: BestRecord | undefined, next: BestRecord): BestRecord {
+  if (!prev) return next
+  if (next.stars > prev.stars) return { ...next, time: Math.min(prev.time, next.time) }
+  return { stars: prev.stars, coins: Math.max(prev.coins, next.coins), time: Math.min(prev.time, next.time) }
 }

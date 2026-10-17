@@ -1,62 +1,32 @@
 /**
- * All gameplay tuning in one place. Change numbers here before touching game code; tests read
- * the same values so rule changes stay covered.
+ * 遊戲數值集中在這裡。DEFAULT_CONFIG 是不可變的原始預設；
+ * CONFIG 是遊戲實際讀取的「作用中」數值（Tweak 面板的 Apply 只會改 CONFIG）。
  */
 export const DEFAULT_CONFIG = {
   run: {
-    seconds: 150,
+    /** 基礎生命數（各關可再加成）。 */
     lives: 3,
-    /** Seconds of invulnerability after a hit. */
+    /** 受傷後的無敵秒數。 */
     invulnerable: 1.6,
-    /** Falling below this height costs a life and respawns at the last checkpoint. */
-    killY: -18,
-  },
-  score: {
-    core: 100,
-    /** Consecutive pickups within `comboWindow` seconds raise the multiplier up to `comboMax`. */
-    comboWindow: 3.5,
-    comboMax: 5,
-    /** Bonus per second left on the clock when every core is collected. */
-    timeBonus: 25,
-    lifeBonus: 500,
   },
   player: {
-    radius: 0.42,
-    halfHeight: 0.5,
-    walkSpeed: 7,
-    sprintSpeed: 11,
-    acceleration: 60,
-    airControl: 0.45,
-    jumpSpeed: 10.5,
-    gravity: -30,
-    /** Extra gravity when the jump button is released early, for variable jump height. */
-    lowJumpGravity: -58,
-    maxFall: -40,
-    coyoteTime: 0.12,
-    jumpBuffer: 0.14,
-    dashSpeed: 22,
-    dashTime: 0.16,
-    dashCooldown: 0.9,
-    turnSpeed: 14,
+    walkSpeed: 8,
+    acceleration: 80,
+    airControl: 0.65,
+    jumpSpeed: 11.5,
+    /** 提早放開跳躍鍵時，上升速度的保留比例（可變跳躍高度）。 */
+    jumpCut: 0.5,
+    coyoteTime: 0.1,
+    jumpBuffer: 0.12,
   },
   camera: {
-    distance: 6.4,
-    height: 2.4,
-    minPitch: -0.35,
-    maxPitch: 1.1,
-    follow: 10,
-    fov: 62,
-  },
-  drones: {
-    speed: 3.2,
-    radius: 0.7,
-    /** Drones speed up as the clock runs down. */
-    rageSpeed: 5,
-    rageAt: 45,
+    distance: 9,
+    follow: 7,
   },
 } as const
 
-// Gameplay always reads active values here. Source defaults remain immutable for
-// Tweak Reset and Save with Manus; Apply never writes source or local storage.
 type MutableConfig<T> = { -readonly [K in keyof T]: T[K] extends number ? number : T[K] extends object ? MutableConfig<T[K]> : T[K] }
 export const CONFIG: MutableConfig<typeof DEFAULT_CONFIG> = structuredClone(DEFAULT_CONFIG)
+
+/** 世界重力（Y 軸，單位 m/s²）。 */
+export const GRAVITY = -30

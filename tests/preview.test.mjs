@@ -14,7 +14,7 @@ afterAll(async () => { await server?.close() })
 
 function readSource(host) {
   return new Promise((resolve, reject) => {
-    const req = request({ hostname: '127.0.0.1', port, path: '/src/main.ts', headers: { host } }, response => {
+    const req = request({ hostname: '127.0.0.1', port, path: '/src/main.tsx', headers: { host } }, response => {
       response.resume()
       response.on('end', () => resolve(response.statusCode))
     })
