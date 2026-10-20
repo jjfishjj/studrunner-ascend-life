@@ -54,7 +54,11 @@ export function buildLevel1(): LevelDef {
   }
 
   // 背景：下方綠色底板與兩側風景
-  decor.push({ pos: [0, -8.4, -45], size: [44, BRICK_H, 120], color: C.green, collide: false })
+  decor.push({ pos: [0, -8.4, -45], size: [64, BRICK_H, 120], color: C.green, collide: false, studs: false })
+  // 根脈溪：沿大道兩側向下游延伸，四張筆記磚依序對應覺察、感恩、種子與家園。
+  decor.push({ pos: [-24, -7.85, -45], size: [6, 0.12, 116], color: '#48B7C5', collide: false, studs: false })
+  decor.push({ pos: [24, -7.85, -45], size: [6, 0.12, 116], color: '#48B7C5', collide: false, studs: false })
+  ;[-40, -29, -17, -3, 13, 27, 39].forEach((z, k) => decor.push({ pos: [k % 2 ? -20 : 20, -7.6, z], size: [2, 0.18, 2], color: k % 2 ? '#B6E5D8' : '#F2CD37', collide: false, studs: false }))
   for (let z = 0; z > -100; z -= 9) {
     for (const side of [-1, 1]) {
       const x = side * (13 + r() * 7)
@@ -95,5 +99,25 @@ export function buildLevel1(): LevelDef {
     goal: [0, 0, -91],
     notes,
     goalNeedsNotes: true,
+    nature: {
+      falls: [],
+      waves: [
+        { x0: -27, x1: -21, z0: 8, z1: -98, y: -7.72 },
+        { x0: 21, x1: 27, z0: 8, z1: -98, y: -7.72 },
+      ],
+      crabs: [], boats: [],
+      flyers: [
+        { center: [-11, 9, -13], radius: 3.5, kind: 'bird', color: C.yellow },
+        { center: [12, 11, -47], radius: 4.5, kind: 'bird', color: C.white },
+        { center: [-10, 10, -77], radius: 3, kind: 'butterfly', color: C.orange },
+      ],
+      zones: [
+        { kind: 'forest', pos: [0, -15], radius: 43 },
+        { kind: 'forest', pos: [0, -65], radius: 48 },
+        { kind: 'river', pos: [-24, -40], radius: 32 },
+        { kind: 'river', pos: [24, -72], radius: 32 },
+        { kind: 'birds', pos: [0, -37], radius: 52 },
+      ],
+    },
   }
 }

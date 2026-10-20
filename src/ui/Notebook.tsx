@@ -64,6 +64,7 @@ export function Notebook() {
                 <Brick color={st.color} className="px-3 py-2" style={{ color: st.ink }}>
                   <div className="text-xs font-black opacity-80">{st.label} · {n}/4</div>
                   <div className="text-sm font-black leading-tight md:text-base">{st.title}</div>
+                  <div className="mt-1 text-[10px] font-bold leading-tight opacity-85">{st.environment}</div>
                 </Brick>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-5 pt-2 sm:grid-cols-4">
                   {mine.map(x => <Chip key={x.id} note={x} got={got.has(x.id)} active={sel === x.id} color={st.color} ink={st.ink} onClick={() => { sfx.click(); setSel(x.id) }} />)}
@@ -82,7 +83,11 @@ export function Notebook() {
             {has ? (
               <div data-testid="note-detail">
                 <h3 className="mt-3 flex items-center gap-2 text-3xl font-black"><NoteIcon size={32} />{noteFolder(note)}</h3>
-                <div className="mt-5 rounded-xl bg-black/20 p-4 text-white">
+                <div className="mt-4 rounded-xl bg-black/20 p-4 text-white">
+                  <div className="text-xs font-black tracking-widest text-white/70">探索地標｜{note.landmark}</div>
+                  <p className="mt-1 text-sm font-bold leading-relaxed">{note.encounter}</p>
+                </div>
+                <div className="mt-3 rounded-xl bg-black/20 p-4 text-white">
                   <div className="text-xs font-black tracking-widest text-white/70">重點</div>
                   <p className="mt-1 text-base font-bold leading-relaxed">{note.summary}</p>
                 </div>
@@ -96,7 +101,7 @@ export function Notebook() {
               <div data-testid="note-locked">
                 <h3 className="mt-3 text-3xl font-black">{note.id}_？？？</h3>
                 <p className="mt-4 text-base font-bold leading-relaxed text-white/90">
-                  這張筆記磚還沒找到。到「{stage.label}・{LEVEL_INFO[note.stage - 1].name}」裡，找發著光柱的筆記磚吧！
+                  這張筆記磚還沒找到。前往「{LEVEL_INFO[note.stage - 1].environment}」探索 {note.landmark}，尋找發著光柱的筆記磚。
                 </p>
                 <button className="btn btn-yellow mt-6" onClick={() => start(note.stage)}>前往 {stage.label}</button>
               </div>

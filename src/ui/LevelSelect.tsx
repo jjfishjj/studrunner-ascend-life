@@ -42,7 +42,9 @@ export function LevelSelect() {
                   <h3 className="mt-4 text-2xl font-black leading-tight">{l.name}</h3>
                   <div className="mt-0.5 text-sm font-black opacity-90">{l.subtitle}</div>
                   <div className="mt-2 text-[11px] font-bold leading-snug opacity-75">{l.theme}</div>
-                  <p className="mt-3 min-h-[4.4rem] text-xs font-bold leading-relaxed opacity-95">{l.blurb}</p>
+                  <div className="mt-2 rounded-lg bg-black/15 px-2 py-1 text-[11px] font-black">地景｜{l.environment}</div>
+                  <p className="mt-3 min-h-[3.8rem] text-xs font-bold leading-relaxed opacity-95">{l.blurb}</p>
+                  <p className="mt-2 min-h-[3.7rem] rounded-lg bg-white/25 px-2 py-1.5 text-[11px] font-bold leading-relaxed">{l.arc}</p>
                   <div className="mt-3 flex items-center justify-between">
                     <NotePips got={n} color={l.ink === '#FFFFFF' ? '#F2CD37' : '#C91A09'} />
                     <span className="rounded-md bg-black/25 px-2 py-0.5 text-[11px] font-black" style={{ color: '#fff' }}>{l.tag}</span>

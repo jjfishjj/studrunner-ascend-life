@@ -7,7 +7,7 @@ import { CONFIG, DEFAULT_CONFIG } from '../game/config'
 import { GameWorld, PLAYER_R } from '../game/engine'
 import { buildLevel } from '../game/levels'
 import { readInput, resetInput } from '../game/input'
-import { setAmbience, sfx } from '../game/audio'
+import { ambienceSnapshot, audioState, setAmbience, sfx } from '../game/audio'
 import { useGame } from '../game/store'
 import type { Vec3 } from '../game/types'
 import { stageOf, NOTE_BY_ID } from '../game/notes'
@@ -52,7 +52,7 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
   useEffect(() => {
     resetInput()
     const dbg = import.meta.env.DEV || new URLSearchParams(location.search).has('debug')
-    if (dbg) (window as unknown as { __studrunner: unknown }).__studrunner = { world, store: useGame, gl }
+    if (dbg) (window as unknown as { __studrunner: unknown }).__studrunner = { world, store: useGame, gl, audioState, ambienceSnapshot }
     const ts = timers.current
     return () => { ts.forEach(clearTimeout) }
   }, [world, gl])
@@ -141,18 +141,30 @@ function Sim({ world, fx, mode, alphaRef, sun }: { world: GameWorld; fx: BrickBu
 
   // 環境音：依玩家與各自然區的距離調整海浪／瀑布／鳥鳴音量
   const ambT = useRef(0)
+  const ambienceLevel = useRef<number | null>(null)
   const updateAmbience = () => {
     const nat = world.level.nature
     const now = performance.now()
-    if (!nat || now - ambT.current < 120) return
+    if (ambienceLevel.current !== world.level.id) {
+      ambienceLevel.current = world.level.id
+      ambT.current = 0
+      if (!nat) setAmbience({})
+    }
+    if (now - ambT.current < 140) return
     ambT.current = now
-    const px = world.player.position.x, pz = world.player.position.z
-    const lv = { sea: 0, falls: 0, jungle: 0 }
+    if (!nat) { setAmbience({}); return }
+    const px = world.player.position.x, py = world.player.position.y, pz = world.player.position.z
+    const lv = { sea: 0, falls: 0, jungle: 0, forest: 0, river: 0, wind: 0, cosmos: 0, night: 0, meadow: 0, birds: 0, insects: 0 }
     for (const z of nat.zones) {
-      const v = Math.max(0, 1 - Math.hypot(px - z.pos[0], pz - z.pos[1]) / z.radius)
+      const dist = Math.hypot(px - z.pos[0], pz - z.pos[1], py - (z.y ?? 0))
+      const v = Math.max(0, 1 - dist / z.radius)
       if (v > lv[z.kind]) lv[z.kind] = v
     }
-    setAmbience({ sea: lv.sea ** 1.3, falls: lv.falls ** 1.3, jungle: Math.min(1, lv.jungle * 1.4) })
+    for (const k of Object.keys(lv) as (keyof typeof lv)[]) {
+      const curve = k === 'sea' || k === 'falls' || k === 'river' ? 1.15 : 1.3
+      lv[k] = lv[k] ** curve
+    }
+    setAmbience(lv)
   }
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.1)

@@ -73,7 +73,7 @@ export function buildLevel2(): LevelDef {
   decor.push(...pixelHeart(0, 0, -109.6, 1.3, C.red))
   for (const sx of [-5.4, 5.4]) for (let k = 0; k < 3; k++) decor.push({ pos: [sx, k * BRICK_H, -100], size: [1.2, BRICK_H, 1.2], color: k % 2 ? C.white : C.red, collide: false })
 
-  // 背景：湖面、飄浮的小愛心與雲
+  // 背景：夕照海灣、潮汐、雙心航線與雲
   decor.push({ pos: [0, -9.6, -50], size: [150, BRICK_H, 200], color: C.blue, collide: false, studs: false })
   for (let k = 0; k < 10; k++) {
     const side = k % 2 ? 1 : -1
@@ -119,5 +119,21 @@ export function buildLevel2(): LevelDef {
     notes,
     goalNeedsNotes: true,
     route,
+    nature: {
+      falls: [],
+      waves: [{ x0: -72, x1: 72, z0: 8, z1: -110, y: -8.85 }],
+      crabs: [],
+      boats: [{ pos: [-28, -8.7, -42] }, { pos: [34, -8.7, -88] }],
+      flyers: [
+        { center: [-18, 11, -16], radius: 5, kind: 'bird', color: C.white },
+        { center: [18, 12, -72], radius: 6, kind: 'bird', color: C.yellow },
+        { center: [0, 9, -96], radius: 4, kind: 'butterfly', color: C.red },
+      ],
+      zones: [
+        { kind: 'sea', pos: [0, -25], radius: 56 },
+        { kind: 'sea', pos: [0, -78], radius: 58 },
+        { kind: 'birds', pos: [0, -53], radius: 65 },
+      ],
+    },
   }
 }

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
-  "title": "揚升人生：樂高積木五階闖關",
-  "description": "操控樂高小人闖過五個積木世界，一階一階向上揚升：收集金幣與 20 張學習筆記磚，跳過移動平台、升降浮橋、旋轉橫桿與限時迷宮。所有畫面皆由程式碼拼出的樂高積木構成。",
+  "title": "揚升人生：五階自然學習闖關",
+  "description": "穿越森林源頭、夕照海灣、五運河谷、星瀑觀象台與海灘／叢林／瀑布交會的合一迷宮。操控樂高小人闖關，收集 20 張對應五階學習的地標筆記磚；程序合成鳥鳴、溪流、海浪、瀑布、山風與星際音景。",
   "defaultCaptions": {
-    "x": "我正在玩《揚升人生》：用樂高積木拼出的 3D 五階闖關，邊玩邊收集學習筆記！",
-    "facebook": "《揚升人生》— 操控樂高小人闖過五個階段，收集 20 張學習筆記磚。",
-    "reddit": "I built a 3D LEGO-style five-stage platformer from procedurally generated studded bricks (React Three Fiber + cannon-es).",
-    "discord": "來挑戰《揚升人生》五階闖關，看你能集齊幾張筆記磚！"
+    "x": "我正在玩《揚升人生》：五階學習筆記結合森林、海灣、河谷、星瀑與合一迷宮的 3D 樂高闖關。",
+    "facebook": "《揚升人生》— 穿越五種自然場域，收集 20 張地標筆記磚，邊闖關邊探索五階學習。",
+    "reddit": "A browser-based 3D brick platformer connecting five learning stages to forests, a sunset bay, a river valley, a star tower, and a jungle-waterfall-beach maze.",
+    "discord": "來玩《揚升人生》五階自然闖關：聽鳥鳴、溪流、海浪與瀑布，找回 20 張學習筆記磚！"
   },
   "assets": {
     "favicon": "assets/share/favicon.png",

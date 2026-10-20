@@ -2,7 +2,7 @@
  * 音效系統：全部由 Web Audio 即時合成，無外部檔案。
  * - sfx：短音效（跳躍、金幣、筆記磚……）
  * - music：每一階各有一首會循環的小曲（由程式依種子生成旋律）
- * - ambience：五階的海浪、瀑布、叢林鳥鳴（依玩家位置調整音量）
+ * - ambience：海浪、瀑布、溪流、森林／草地、叢林昆蟲、山風與宇宙音景（依玩家位置調整音量）
  * 瀏覽器要求「使用者互動後」才能出聲，所以會在第一次點擊 / 按鍵時自動解鎖。
  */
 let ctx: AudioContext | null = null
@@ -37,11 +37,13 @@ function ensure(): AudioContext | null {
     ctx.addEventListener('statechange', flushRunning)
   }
   if (ctx.state === 'suspended') void ctx.resume().then(flushRunning, () => { /* 仍被瀏覽器擋住，等下一次互動 */ })
+  else flushRunning()
   return ctx
 }
 function flushRunning() {
   if (ctx?.state !== 'running') return
   while (onRunning.length) onRunning.shift()!()
+  if (AMBIENCE_KINDS.some(k => ambTarget[k] > 0.01)) startAmbience()
 }
 
 export function setMuted(m: boolean) {
@@ -325,73 +327,141 @@ export function musicPreview(choice: MusicChoice | null) {
 export function setMusicVolume(v: number) { musicVolume = Math.max(0, Math.min(1.5, v)); applyDuck() }
 export function musicDuck(on: boolean) { ducked = on; applyDuck() }
 
-/* ------------------------------------------------------------------ 環境音（海浪／瀑布／叢林） */
-
-export interface AmbienceLevels { sea: number; falls: number; jungle: number }
-interface AmbNodes { sea: GainNode; falls: GainNode; timer: number }
+/* ------------------------------------------------------------------ 程序環境音景（全由 Web Audio 合成，依位置平滑混音） */
+export const AMBIENCE_KINDS = ['sea', 'falls', 'jungle', 'forest', 'river', 'wind', 'cosmos', 'night', 'meadow', 'birds', 'insects'] as const
+export type AmbienceKind = typeof AMBIENCE_KINDS[number]
+export type AmbienceLevels = Record<AmbienceKind, number>
+const ZERO_AMBIENCE = Object.fromEntries(AMBIENCE_KINDS.map(k => [k, 0])) as AmbienceLevels
+interface AmbNodes { out: Record<AmbienceKind, GainNode>; timer: number; sources: AudioNode[] }
 let amb: AmbNodes | null = null
-let ambTarget: AmbienceLevels = { sea: 0, falls: 0, jungle: 0 }
+let ambTarget: AmbienceLevels = { ...ZERO_AMBIENCE }
 
+/** 可循環、淡化接縫的粉紅噪音，用來合成水、風與遠方空氣聲。 */
 function noiseLoop(c: AudioContext, seconds: number): AudioBufferSourceNode {
   const len = Math.floor(c.sampleRate * seconds)
   const buf = c.createBuffer(1, len, c.sampleRate)
   const d = buf.getChannelData(0)
   let last = 0
-  for (let i = 0; i < len; i++) { last = last * 0.96 + (Math.random() * 2 - 1) * 0.3; d[i] = last }
-  const s = c.createBufferSource()
-  s.buffer = buf
-  s.loop = true
-  return s
+  for (let i = 0; i < len; i++) {
+    last = last * 0.94 + (Math.random() * 2 - 1) * 0.11
+    d[i] = last
+  }
+  // 把循環接縫交叉淡化，避免每隔數秒出現 click。
+  const fade = Math.min(Math.floor(c.sampleRate * 0.18), Math.floor(len / 8))
+  for (let i = 0; i < fade; i++) {
+    const t = i / fade
+    const head = d[i], tail = d[len - fade + i]
+    d[i] = tail * (1 - t) + head * t
+    d[len - fade + i] = tail * t + head * (1 - t)
+  }
+  const src = c.createBufferSource()
+  src.buffer = buf
+  src.loop = true
+  return src
 }
 function startAmbience() {
   const c = ctx
   if (amb || !c || !ambBus || c.state !== 'running') return
-  // 海浪：低頻噪音 + 緩慢起伏（約 8 秒一個浪）
-  const seaSrc = noiseLoop(c, 4)
-  const seaLp = c.createBiquadFilter(); seaLp.type = 'lowpass'; seaLp.frequency.value = 900
-  const seaSwell = c.createGain(); seaSwell.gain.value = 0.5
-  const lfo = c.createOscillator(); lfo.frequency.value = 0.13
-  const lfoAmt = c.createGain(); lfoAmt.gain.value = 0.45
-  lfo.connect(lfoAmt).connect(seaSwell.gain)
-  const sea = c.createGain(); sea.gain.value = 0
-  seaSrc.connect(seaLp).connect(seaSwell).connect(sea).connect(ambBus)
-  seaSrc.start(); lfo.start()
-  // 瀑布：持續的帶通噪音
-  const fSrc = noiseLoop(c, 3)
-  const fBp = c.createBiquadFilter(); fBp.type = 'bandpass'; fBp.frequency.value = 1500; fBp.Q.value = 0.45
-  const falls = c.createGain(); falls.gain.value = 0
-  fSrc.connect(fBp).connect(falls).connect(ambBus)
-  fSrc.start()
-  // 叢林：隨機鳥鳴
+  const out = Object.fromEntries(AMBIENCE_KINDS.map(k => {
+    const g = c.createGain(); g.gain.value = 0; g.connect(ambBus!); return [k, g]
+  })) as Record<AmbienceKind, GainNode>
+  const sources: AudioNode[] = []
+  const keep = <T extends AudioNode>(node: T): T => { sources.push(node); return node }
+  const noiseBed = (kind: AmbienceKind, config: { hp: number; lp: number; gain: number; seconds?: number }) => {
+    const src = keep(noiseLoop(c, config.seconds ?? 4)) as AudioBufferSourceNode
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = config.hp
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = config.lp
+    const bed = c.createGain(); bed.gain.value = config.gain
+    src.connect(hp).connect(lp).connect(bed).connect(out[kind]); src.start()
+    return { src, hp, lp, bed }
+  }
+  // 海：深水低鳴 + 潮線寬頻噪音；兩個慢速包絡交疊成浪頭。
+  const surf = noiseBed('sea', { hp: 75, lp: 1050, gain: 0.36, seconds: 6 })
+  const swell = c.createOscillator(); swell.type = 'sine'; swell.frequency.value = 0.09
+  const swellAmt = c.createGain(); swellAmt.gain.value = 0.22; swell.connect(swellAmt).connect(surf.bed.gain); swell.start(); keep(swell); keep(swellAmt)
+  const hiss = noiseBed('sea', { hp: 720, lp: 4300, gain: 0.12, seconds: 3.5 })
+  const hissLfo = c.createOscillator(); hissLfo.frequency.value = 0.17
+  const hissAmt = c.createGain(); hissAmt.gain.value = 0.055; hissLfo.connect(hissAmt).connect(hiss.bed.gain); hissLfo.start(); keep(hissLfo); keep(hissAmt)
+  // 瀑布：低頻水量、明亮水霧兩層，不用單一白噪音掩蓋音樂。
+  noiseBed('falls', { hp: 95, lp: 820, gain: 0.22, seconds: 4 })
+  noiseBed('falls', { hp: 760, lp: 5200, gain: 0.09, seconds: 3 })
+  // 溪流：清亮中頻水聲，濾掉尖銳高頻；用輕微濾波漂移增加流動感。
+  const stream = noiseBed('river', { hp: 260, lp: 2100, gain: 0.19, seconds: 4 })
+  const streamLfo = c.createOscillator(); streamLfo.frequency.value = 0.21
+  const streamAmt = c.createGain(); streamAmt.gain.value = 360; streamLfo.connect(streamAmt).connect(stream.lp.frequency); streamLfo.start(); keep(streamLfo); keep(streamAmt)
+  // 森林／草地：很輕的風底，鳥鳴由下方的事件調度器間歇出現。
+  noiseBed('forest', { hp: 110, lp: 1600, gain: 0.11, seconds: 5 })
+  noiseBed('meadow', { hp: 180, lp: 2600, gain: 0.08, seconds: 4 })
+  // 山風：寬頻氣流穿過中低通濾波器，慢速音量起伏與音色掃動。
+  const breeze = noiseBed('wind', { hp: 130, lp: 3600, gain: 0.22, seconds: 6 })
+  const windLfo = c.createOscillator(); windLfo.frequency.value = 0.055
+  const windAmt = c.createGain(); windAmt.gain.value = 0.12; windLfo.connect(windAmt).connect(breeze.bed.gain); windLfo.start(); keep(windLfo); keep(windAmt)
+  const windTone = c.createOscillator(); windTone.type = 'sine'; windTone.frequency.value = 172
+  const windToneGain = c.createGain(); windToneGain.gain.value = 0.018
+  windTone.connect(windToneGain).connect(out.wind); windTone.start(); keep(windTone); keep(windToneGain)
+  // 夜蟲與叢林蟲鳴：窄帶高頻載波被 LFO 切成自然的脈衝。
+  for (const [kind, base, rate, level] of [['insects', 2460, 5.4, 0.025], ['night', 2940, 4.1, 0.018], ['jungle', 2180, 7.2, 0.016]] as const) {
+    const osc = c.createOscillator(); osc.type = 'sine'; osc.frequency.value = base
+    const gain = c.createGain(); gain.gain.value = level
+    const trem = c.createOscillator(); trem.frequency.value = rate
+    const depth = c.createGain(); depth.gain.value = level * 0.8
+    trem.connect(depth).connect(gain.gain); osc.connect(gain).connect(out[kind]); osc.start(); trem.start()
+    keep(osc); keep(gain); keep(trem); keep(depth)
+  }
+  // 星際底音：柔和五度與八度和聲，讓旋律間有「空間」而非尖銳科幻警報。
+  for (const [hz, vol, phase] of [[55, 0.032, 0], [82.41, 0.02, 0.7], [110, 0.014, 1.4]] as const) {
+    const osc = c.createOscillator(); osc.type = 'sine'; osc.frequency.value = hz
+    const lfo = c.createOscillator(); lfo.frequency.value = 0.03 + phase * 0.01
+    const detune = c.createGain(); detune.gain.value = 1.8
+    lfo.connect(detune).connect(osc.detune)
+    const gain = c.createGain(); gain.gain.value = vol
+    osc.connect(gain).connect(out.cosmos); osc.start(); lfo.start()
+    keep(osc); keep(lfo); keep(detune); keep(gain)
+  }
+  // 遠近不只改底噪，也改鳥鳴的密度；聲像在左右耳之間緩慢移動。
   const timer = window.setInterval(() => {
-    const v = ambTarget.jungle
-    if (v < 0.08 || muted || c.state !== 'running') return
-    if (Math.random() > 0.5 * v + 0.1) return
-    const base = 1800 + Math.random() * 2200
-    const n = 1 + Math.floor(Math.random() * 3)
-    for (let k = 0; k < n; k++) {
-      const t0 = c.currentTime + k * 0.11
-      const o = c.createOscillator(); const g = c.createGain()
-      o.type = 'sine'
-      o.frequency.setValueAtTime(base * (1 + 0.15 * k), t0)
-      o.frequency.exponentialRampToValueAtTime(base * (1.5 + 0.1 * k), t0 + 0.08)
-      g.gain.setValueAtTime(0.0001, t0)
-      g.gain.exponentialRampToValueAtTime(0.16 * v, t0 + 0.01)
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09)
-      o.connect(g).connect(ambBus!)
-      o.start(t0); o.stop(t0 + 0.12)
+    if (muted || c.state !== 'running') return
+    const forest = ambTarget.forest + ambTarget.meadow * 0.45 + ambTarget.birds * 0.4
+    const jungle = ambTarget.jungle + ambTarget.birds * 0.55
+    const intensity = Math.max(forest, jungle)
+    if (intensity < 0.08 || Math.random() > Math.min(0.78, 0.08 + intensity * 0.58)) return
+    const t = c.currentTime + 0.02
+    const base = jungle > forest ? 1850 + Math.random() * 2500 : 1450 + Math.random() * 2300
+    const notes = jungle > forest && Math.random() < 0.3 ? 3 : 2
+    const pan = c.createStereoPanner(); pan.pan.value = Math.random() * 1.6 - 0.8
+    const voice = c.createGain(); voice.gain.setValueAtTime(0.0001, t)
+    pan.connect(out[jungle > forest ? 'jungle' : 'forest'])
+    voice.connect(pan)
+    for (let k = 0; k < notes; k++) {
+      const o = c.createOscillator(); o.type = k === 0 ? 'sine' : 'triangle'
+      const st = t + k * (jungle > forest ? 0.095 : 0.16)
+      const freq = base * (1 + 0.08 * k)
+      o.frequency.setValueAtTime(freq, st)
+      o.frequency.exponentialRampToValueAtTime(freq * (Math.random() < 0.5 ? 1.28 : 0.78), st + 0.12)
+      const eg = c.createGain(); eg.gain.setValueAtTime(0.0001, st)
+      eg.gain.exponentialRampToValueAtTime((jungle > forest ? 0.075 : 0.055) * intensity, st + 0.018)
+      eg.gain.exponentialRampToValueAtTime(0.0001, st + 0.17)
+      o.connect(eg).connect(voice); o.start(st); o.stop(st + 0.19); o.onended = () => { o.disconnect(); eg.disconnect() }
     }
-  }, 380)
-  amb = { sea, falls, timer }
+    voice.gain.setValueAtTime(0.0001, t)
+    voice.gain.setTargetAtTime(1, t, 0.025)
+    voice.gain.setTargetAtTime(0.0001, t + 0.42, 0.055)
+    window.setTimeout(() => { try { voice.disconnect(); pan.disconnect() } catch { /* 已自然結束 */ } }, 1000)
+  }, 420)
+  amb = { out, timer, sources }
+  for (const k of AMBIENCE_KINDS) out[k].gain.setTargetAtTime(ambTarget[k] * 0.46, c.currentTime, 0.45)
 }
-/** 依玩家位置設定各環境音的音量（0~1）。 */
-export function setAmbience(l: AmbienceLevels) {
-  ambTarget = l
+/** 依各地景距離設定 0~1 強度；漸進式增益避免場景切換時爆音。 */
+export function setAmbience(levels: Partial<AmbienceLevels>) {
+  ambTarget = { ...ZERO_AMBIENCE, ...levels }
+  for (const key of AMBIENCE_KINDS) ambTarget[key] = Math.max(0, Math.min(1, ambTarget[key] ?? 0))
   const c = ctx
   if (!c || c.state !== 'running') return
   startAmbience()
   if (!amb) return
-  amb.sea.gain.setTargetAtTime(l.sea * 0.55, c.currentTime, 0.4)
-  amb.falls.gain.setTargetAtTime(l.falls * 0.5, c.currentTime, 0.4)
+  for (const key of AMBIENCE_KINDS) amb.out[key].gain.setTargetAtTime(ambTarget[key] * 0.46, c.currentTime, 0.5)
 }
-export function stopAmbience() { setAmbience({ sea: 0, falls: 0, jungle: 0 }) }
+/** 暫停／離開遊戲時，快速淡出所有地景音。 */
+export function stopAmbience() { setAmbience(ZERO_AMBIENCE) }
+/** 測試／無障礙狀態列可讀取目前的地景混音，不暴露 AudioNode。 */
+export function ambienceSnapshot(): Readonly<AmbienceLevels> { return { ...ambTarget } }

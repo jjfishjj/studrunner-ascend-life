@@ -335,6 +335,10 @@ export function buildLevel5(): LevelDef {
       zones: [
         { kind: 'sea', pos: [-35, 58], radius: 58 }, { kind: 'sea', pos: [0, 58], radius: 58 }, { kind: 'sea', pos: [35, 58], radius: 58 },
         { kind: 'falls', pos: [FX, -46], radius: 62 },
+        { kind: 'river', pos: [FX, -46], radius: 44 },
+        { kind: 'birds', pos: [FX, -47], radius: 55 },
+        { kind: 'insects', pos: [-37, 0], radius: 34 },
+        { kind: 'forest', pos: [37, 0], radius: 46 },
         { kind: 'jungle', pos: [-37, 0], radius: 48 }, { kind: 'jungle', pos: [37, 0], radius: 48 }, { kind: 'jungle', pos: [0, 0], radius: 42 },
       ],
     },

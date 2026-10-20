@@ -54,7 +54,8 @@ export interface LightSpec {
   hemiIntensity: number
   env: number
 }
-/** 會動的自然景物與環境音分區（目前五階使用）。座標皆為世界座標。 */
+export type AmbienceKind = 'sea' | 'falls' | 'jungle' | 'forest' | 'river' | 'wind' | 'cosmos' | 'night' | 'meadow' | 'birds' | 'insects'
+/** 會動的自然景物與環境音分區。座標皆為世界座標。 */
 export interface NatureDef {
   /** 瀑布：從 y1 流到 y0，寬 w，面向 +z（水片位於 z） */
   falls: { x: number; z: number; y0: number; y1: number; w: number }[]
@@ -65,7 +66,7 @@ export interface NatureDef {
   /** 蝴蝶／小鳥：繞著中心飛 */
   flyers: { center: Vec3; radius: number; kind: 'butterfly' | 'bird'; color: string }[]
   /** 環境音分區：玩家離中心越近音量越大 */
-  zones: { kind: 'sea' | 'falls' | 'jungle'; pos: [number, number]; radius: number }[]
+  zones: { kind: AmbienceKind; pos: [number, number]; y?: number; radius: number }[]
 }
 export interface SwitchSpec { pos: Vec3 }
 

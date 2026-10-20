@@ -78,8 +78,12 @@ export function buildLevel3(): LevelDef {
     movers.push({ id: `reach-${k}`, brick: { pos: [0, -BRICK_H, z], size: [5, BRICK_H, 4], color: ISLAND_COLORS[3] }, motion: { type: 'slide', axis: 'z', amp: 1.8, speed: 1.3, phase: k * 2.1 } })
   })
 
-  // 背景：雲海與飄浮的雲
-  decor.push({ pos: [0, -14, -60], size: [220, BRICK_H, 260], color: C.white, collide: false, studs: false })
+  // 背景：五運河谷。五島下方是相連的青綠河水，島緣瀑布標示每段平衡轉換。
+  decor.push({ pos: [0, -8.4, -60], size: [220, BRICK_H, 260], color: '#248E9A', collide: false, studs: false })
+  decor.push({ pos: [0, -7.72, -60], size: [188, 0.12, 230], color: '#56C7C1', collide: false, studs: false })
+  decor.push({ pos: [0, -12, -60], size: [230, BRICK_H, 270], color: C.darkGreen, collide: false, studs: false })
+  // 上游霧雲讓五島像沿河谷逐層展開，而不是漂在空白天空。
+  for (let k = 0; k < 14; k++) decor.push(...cloud((r() - 0.5) * 120, -4 + r() * 17, -r() * 130 + 10, r))
   for (let k = 0; k < 14; k++) decor.push(...cloud((r() - 0.5) * 120, -8 + r() * 28, -r() * 130 + 10, r))
 
   const notes: NoteSpec[] = [
@@ -123,5 +127,28 @@ export function buildLevel3(): LevelDef {
     notes,
     goalNeedsNotes: true,
     route,
+    nature: {
+      falls: [
+        ...[-15, -45, -75, -105].flatMap((z, i) => [
+          { x: i % 2 ? -7.3 : 7.3, z, y0: -7.2, y1: -0.8, w: 2.6 },
+          { x: i % 2 ? 7.3 : -7.3, z: z - 2, y0: -7.2, y1: -1.2, w: 1.8 },
+        ]),
+      ],
+      waves: [{ x0: -106, x1: 106, z0: 6, z1: -126, y: -7.65 }],
+      crabs: [], boats: [],
+      flyers: [
+        { center: [-16, 8, -24], radius: 5, kind: 'bird', color: C.white },
+        { center: [18, 9, -74], radius: 6, kind: 'bird', color: C.yellow },
+        { center: [-18, 10, -110], radius: 4, kind: 'butterfly', color: C.orange },
+      ],
+      zones: [
+        { kind: 'river', pos: [0, -28], radius: 38 },
+        { kind: 'river', pos: [0, -83], radius: 42 },
+        { kind: 'falls', pos: [-7, -45], radius: 34 },
+        { kind: 'falls', pos: [7, -105], radius: 34 },
+        { kind: 'forest', pos: [0, -58], radius: 58 },
+        { kind: 'meadow', pos: [0, -3], radius: 34 },
+      ],
+    },
   }
 }

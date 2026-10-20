@@ -16,9 +16,9 @@
       "groupId": "share"
     },
     "assets/share/og.png": {
-      "path": "/manus-storage/game/sha256/a58b1a14ccc44c1cd355c625d14a9867090a1bc78f2adb560d2ef22ad0ac9f84.png",
-      "sha256": "sha256:a58b1a14ccc44c1cd355c625d14a9867090a1bc78f2adb560d2ef22ad0ac9f84",
-      "size": 938867,
+      "path": "/manus-storage/game/sha256/84c3229113e6e8ef60ff03e97795fd911bc178b2577dc8f8b80753dbecf0e804.png",
+      "sha256": "sha256:84c3229113e6e8ef60ff03e97795fd911bc178b2577dc8f8b80753dbecf0e804",
+      "size": 4813358,
       "assetType": "image",
       "groupId": "share"
     }

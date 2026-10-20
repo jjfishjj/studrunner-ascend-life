@@ -106,6 +106,15 @@ export function buildLevel4(): LevelDef {
     goal: [g.x, goalTop, g.z],
     notes,
     goalNeedsNotes: true,
+    nature: {
+      falls: [], waves: [], crabs: [], boats: [], flyers: [],
+      zones: [
+        { kind: 'cosmos', pos: [0, 0], y: 12, radius: 40 },
+        { kind: 'wind', pos: [8, -8], y: 18, radius: 26 },
+        { kind: 'wind', pos: [-8, 8], y: 32, radius: 26 },
+        { kind: 'night', pos: [0, 0], y: 40, radius: 34 },
+      ],
+    },
     meta: { goalTop },
   }
 }

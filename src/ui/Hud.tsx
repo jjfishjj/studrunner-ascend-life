@@ -74,7 +74,10 @@ export function Hud() {
           <div className="ink-text text-sm tracking-[.3em] opacity-70">{info.label} · {info.subtitle}</div>
           <div className="ink-text text-4xl">{info.name}</div>
         </Brick>
-        <div className="lego-text mx-auto mt-5 max-w-lg rounded-xl bg-black/45 px-5 py-2 text-base">{buildLevelHint(levelId)}</div>
+        <div className="lego-text mx-auto mt-4 max-w-lg rounded-xl bg-black/45 px-5 py-2 text-sm md:text-base">{buildLevelHint(levelId)}</div>
+        <div className="mx-auto mt-2 max-w-lg rounded-xl border border-white/25 bg-[#0B2A5B]/65 px-4 py-2 text-sm font-bold leading-relaxed text-white/95 shadow-lg">
+          <span className="text-lyellow">{info.environment}</span><br />{info.reflection}
+        </div>
       </div>
 
       {/* 筆記卡：撿到筆記磚時彈出 */}
@@ -86,7 +89,11 @@ export function Hud() {
             <Brick color={st.color} className="px-6 py-4" style={{ color: st.ink }}>
               <div className="text-[11px] font-black tracking-[.3em] opacity-80">獲得筆記磚 · {st.label}</div>
               <div className="mt-0.5 text-2xl font-black">{def.id}_{def.name}</div>
-              <p className="mt-1.5 text-sm font-bold leading-relaxed opacity-95">{def.summary}</p>
+              <div className="mt-2 rounded-lg bg-black/15 px-3 py-2">
+                <div className="text-[11px] font-black opacity-80">地景地標｜{def.landmark}</div>
+                <p className="mt-1 text-sm font-bold leading-relaxed opacity-95">{def.encounter}</p>
+              </div>
+              <p className="mt-2 text-xs font-bold leading-relaxed opacity-80">{def.summary}</p>
             </Brick>
           </div>
         )
