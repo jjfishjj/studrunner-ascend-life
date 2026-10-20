@@ -1,33 +1,37 @@
-# 開發計畫
+# 開發與部署計畫
 
-## 已完成的前一輪
+## 功能完成
 
-第五關已加入閘門後潮汐漂流木與檢查點；全遊戲已加入鍵盤／手機虛擬搖桿、按住跳躍與暫停控制。保留既有 20 張學習筆記與繁體中文、程式生成樂高積木風格。
+沿用資料驅動的 React Three Fiber／cannon-es 遊戲，保留行動裝置虛擬搖桿、按住跳躍、暫停操作與第五關潮汐障礙。新增第六關「星空之門」作為最終結局：深靛星空、浮空積木島、程式生成星體、可移動軌道橋及六枚星之碎片；路線設有兩個檢查點，收集碎片後開啟終點星門。終章無倒數、不新增學習筆記分類，既有五階、20 張筆記維持不變。
 
-## 本次目標與成果
+擴充 Web Audio：新增終章合成 BGM、星之碎片／星門／終章勝利音效及獨立 SFX 音量設定；保留森林、溪流、海浪、瀑布、叢林、山風等上游環境音，並為終章加入宇宙與夜色環境音區。舊版音量偏好可相容讀取。
 
-延續既有資料驅動的 React Three Fiber／cannon-es 遊戲，不新增外部素材或套件。新增第六關「星空之門」作為最終結局：深靛星空、浮空積木島與程式生成星體；玩家沿固定路線收集六枚星之碎片，搭上安全的移動軌道橋、經過兩個檢查點，開啟星門抵達終點。終章無倒數、不新增學習筆記分類；原有五階、20 張筆記及存檔格式保持不變。結算畫面收束五階學習旅程並呈現星門結局。
+## 最新上游整合
 
-擴充既有 Web Audio 架構：第六關有獨立合成 BGM 槽；星之碎片、星門開啟與終章勝利使用專屬音效；音樂設定提供獨立 SFX 音量滑桿，並持久化音樂與音效音量。舊版只存音樂音量的偏好資料，讀取時以預設 SFX 音量相容載入。
+使用者要求部署在 `jjfishjj` 自己的 GitHub。已從公開上游 `kuojunbin-eng/studrunner-ascend-life` 建立公開 fork `jjfishjj/studrunner-ascend-life`，沒有修改上游。fork 包含較本機 clone 更新的上游 commit `29f324d`；本機遊戲及 Pages 兩個 commit 已重放至此最新版本之上。整合期間保留上游新增的自然場景、音景、首頁預覽及專案維護變更。
 
-## 實作與驗收結果
+## GitHub Pages 部署
 
-1. 新增 `src/game/levels/level6.ts`：固定星島平台、六枚星之碎片（使用既有金幣引擎）、數量閘門、兩個安全檢查點、終點及機器人測試路線。
-2. 在 `src/game/levels/index.ts` 註冊第六關，但不將它加入五階筆記 `STAGES`；更新主選單、選關卡、HUD、星門場景、勝利／失敗結算。
-3. 在 `audio.ts` 加入第六關合成主題、星碎片／星門／終章音效及 SFX bus 音量 API；在 `musicLibrary.ts`、`MusicSettings.tsx` 加入第六槽、相容偏好儲存及獨立音量控制。
-4. README、AGENTS 與公用曲庫說明已同步；增加音量偏好測試、六關資料與機器人通關測試、凸點效能預算，以及 Chromium smoke。
-5. `pnpm test`（58 項）、`pnpm build:local`、Chromium smoke 與 `git diff --check` 均通過。
-6. 已將前一輪與本次變更 commit 到本機 `main`。GitHub repo 預設分支也是 `main`，但目前連線的 `viewerPermission` 為 `READ`；嘗試推送時若被拒，保留 commit 並待授予 Write 權限後再推送。不建立 fork／PR，也不部署遊戲。
+專案為 Vite 靜態 SPA；相對資產路徑 `base: './'` 支援 repository Pages 子路徑。`.github/workflows/deploy-pages.yml` 在 `main` push 或手動執行時，使用鎖定依賴與 `pnpm build:local` 建置 `dist/`，再透過 `actions/upload-pages-artifact` 與 `actions/deploy-pages` 發布；部署 job 採最小的 `pages: write`、`id-token: write` 權限及 `github-pages` environment。
 
-## 專案結構
+部署目標為 `jjfishjj/studrunner-ascend-life`，預期玩家網址為 [https://jjfishjj.github.io/studrunner-ascend-life/](https://jjfishjj.github.io/studrunner-ascend-life/)。首次發布需在 fork 的 **Settings → Pages → Build and deployment → Source** 選擇 **GitHub Actions**；完成 push 與 Pages source 設定後，等待 Actions 成功並在瀏覽器確認站點載入，才標記正式上線。
 
-- `src/game/levels/level6.ts`、`src/game/levels/index.ts`：星門地圖與六關註冊。
-- `src/components/LevelScene.tsx`、`src/components/GameView.tsx`：星門視覺與關卡專屬音效事件。
-- `src/game/audio.ts`、`src/game/musicLibrary.ts`、`src/ui/MusicSettings.tsx`：程式合成音訊、曲目槽、偏好儲存與音量控制。
-- `src/ui/Hud.tsx`、`LevelSelect.tsx`、`MainMenu.tsx`、`Overlays.tsx`：第六關總數、終章選單與結局呈現。
-- `tests/engine.test.ts`、`levels.test.ts`、`musicLibrary.test.ts`、`scripts/smoke.mjs`：通關、資料完整性、設定相容與瀏覽器流程。
-- `README.md`、`AGENTS.md`、`public/music/README.md`：維護者文件。
+## 驗證與檔案
 
-## 依賴與限制
+最新 upstream 整合後，`pnpm test` 8 個測試檔、67 項全部通過；`pnpm build:local` 通過；Chromium smoke 覆蓋選單、六關環境混音、第五星筆記、遊戲結束、兩種勝利流程、終章星門與筆記本，無 console errors；`git diff --check` 通過。
 
-沿用 React、TypeScript、Vite、Three.js、cannon-es、zustand 和 Web Audio；不新增依賴。維持五階／20 張筆記、既有第 1–5 關資料與第五關迷宮種子。GitHub 只推送本專案已授權的程式碼變更；不發布遊戲部署。
+主要新增／更新：
+
+- `.github/workflows/deploy-pages.yml`、`README.md`：Pages workflow 與玩家入口說明。
+- `src/game/levels/level6.ts`、`src/game/levels/index.ts`：終章資料、星空音景與六關註冊。
+- `src/game/audio.ts`、`src/game/musicLibrary.ts`、`src/ui/MusicSettings.tsx`：合成音訊與音量偏好。
+- `src/ui/TouchControls.tsx`、`src/game/input.ts`：手機觸控輸入及生命週期清理。
+- `src/components/LevelScene.tsx`、`src/components/GameView.tsx`、`src/ui/*`：終章場景、事件音效、選單、HUD 與結局。
+- `tests/*`、`scripts/smoke.mjs`：關卡、輸入、偏好相容與瀏覽器流程測試。
+
+## 官方參考
+
+- [GitHub Pages 自訂 workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+- [configure-pages action](https://github.com/actions/configure-pages)
+- [upload-pages-artifact action](https://github.com/actions/upload-pages-artifact)
+- [deploy-pages action](https://github.com/actions/deploy-pages)

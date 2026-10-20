@@ -28,7 +28,7 @@ pnpm smoke      # 建置後的瀏覽器端到端測試（需 Chromium；截圖�
 
 `.github/workflows/deploy-pages.yml` 會在推送至 `main` 或手動執行 workflow 時，以 `pnpm build:local` 建置 `dist/`，再發布到 GitHub Pages。Vite 使用相對資產路徑，支援 repository Pages 子路徑。
 
-首次部署前，repo 管理者需在 **Settings → Pages → Build and deployment → Source** 選擇 **GitHub Actions**。workflow 成功後，玩家網址為 [https://kuojunbin-eng.github.io/studrunner-ascend-life/](https://kuojunbin-eng.github.io/studrunner-ascend-life/)。
+首次部署前，repo 管理者需在 **Settings → Pages → Build and deployment → Source** 選擇 **GitHub Actions**。workflow 成功後，玩家網址為 [https://jjfishjj.github.io/studrunner-ascend-life/](https://jjfishjj.github.io/studrunner-ascend-life/)。
 
 網址加上 `?debug` 會在 `window.__studrunner` 暴露 `world`、`store`、`gl`，供自動化測試使用。
 

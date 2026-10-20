@@ -117,6 +117,13 @@ export function buildLevel6(): LevelDef {
     notes: [],
     goalNeedsNotes: false,
     route,
+    nature: {
+      falls: [], waves: [], crabs: [], boats: [], flyers: [],
+      zones: [
+        { kind: 'cosmos', pos: [0, -16], y: 0, radius: 60 },
+        { kind: 'night', pos: [-4, -34], y: 4, radius: 38 },
+      ],
+    },
     meta: { goalTop: 4, pathLength: route.length },
   }
 }
